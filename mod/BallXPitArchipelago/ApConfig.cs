@@ -4,6 +4,12 @@ using Newtonsoft.Json;
 
 namespace BallXPitArchipelago;
 
+/// <summary>
+/// Last-used connection details, saved after a successful connect so the in-game GUI
+/// (ApGui) can prefill its fields on the next launch. Not required to exist - the GUI is
+/// the primary way to connect, this is just a convenience so returning players don't have
+/// to retype everything.
+/// </summary>
 public class ApConfig
 {
     public string Host { get; set; } = "archipelago.gg";
@@ -20,40 +26,26 @@ public class ApConfig
         }
     }
 
-    /// <summary>
-    /// Loads BallXPitArchipelago.json from next to this DLL. If it doesn't exist yet,
-    /// writes a template with an empty Slot (which is treated as "not configured") and
-    /// returns null so the caller can skip connecting.
-    /// </summary>
     public static ApConfig Load(MelonLogger.Instance log)
     {
         var path = ConfigPath;
 
         if (!File.Exists(path))
-        {
-            var template = new ApConfig();
-            File.WriteAllText(path, JsonConvert.SerializeObject(template, Formatting.Indented));
-            log.Msg($"Wrote a template config to {path}");
-            return null;
-        }
+            return new ApConfig();
 
-        ApConfig config;
         try
         {
-            config = JsonConvert.DeserializeObject<ApConfig>(File.ReadAllText(path));
+            return JsonConvert.DeserializeObject<ApConfig>(File.ReadAllText(path)) ?? new ApConfig();
         }
         catch (Exception e)
         {
-            log.Error($"Failed to parse {path}: {e.Message}");
-            return null;
+            log.Warning($"Failed to parse {path}, ignoring it: {e.Message}");
+            return new ApConfig();
         }
+    }
 
-        if (string.IsNullOrWhiteSpace(config?.Slot))
-        {
-            log.Warning($"{path} has no Slot set; not connecting.");
-            return null;
-        }
-
-        return config;
+    public void Save()
+    {
+        File.WriteAllText(ConfigPath, JsonConvert.SerializeObject(this, Formatting.Indented));
     }
 }

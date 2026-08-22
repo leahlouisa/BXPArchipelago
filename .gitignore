@@ -1,6 +1,8 @@
 mod/**/bin/
 mod/**/obj/
 *.apworld
+__pycache__/
+*.pyc
 
 # Machine-specific: your local Ball X Pit install path. Copy GameDir.props.example instead.
 mod/**/GameDir.props

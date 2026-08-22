@@ -1,27 +1,37 @@
+using System.Collections.ObjectModel;
 using Archipelago.MultiClient.Net.Helpers;
+using Archipelago.MultiClient.Net.Models;
 using Il2Cpp;
 using MelonLoader;
 
 namespace BallXPitArchipelago;
 
 /// <summary>
-/// Applies items received from the Archipelago server to the current save via SaveMgr.
+/// Applies items received from the Archipelago server to the current save.
 ///
 /// Item name convention (must match the ballxpit apworld's item table):
 ///   "Character: {display}"        -> SaveMgr.I.UnlockChar(CharType.k{Token})
 ///   "Blueprint: {display}"        -> SaveMgr.I.GainBlueprint(BuildingType.k{Token})
-///   "Level Access: {display}"     -> tracked for the level-access gate (Phase 3 hook; no-op for now)
-///   "Progressive Land Expansion"  -> tracked as a count (Phase 3 hook; no-op for now)
+///   "Level Access: {display}"     -> added to UnlockedLevels, read by LocationHooks'
+///                                     LevelSelectItem.InitLocked gate
+///   "Progressive Land Expansion"  -> counted into LandExpansionCount, read by LocationHooks'
+///                                     BaseGridMgr.ConfirmExpansion gate
 ///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant
 ///
-/// This is Phase 1 scaffolding: it proves the receive-and-apply loop end-to-end for the
-/// systems SaveMgr already exposes a direct public grant method for (characters,
-/// blueprints, resources). Level access and land expansion don't have a direct "just
-/// grant it" API in vanilla - those need the Harmony gating hooks from Phase 3.
+/// Characters and Blueprints are also grantable by vanilla game logic - LocationHooks
+/// suppresses those vanilla grants (converting the vanilla trigger into a location check
+/// instead) so IsApplyingItem is used to tell LocationHooks "this SaveMgr call came from
+/// an AP item being applied, let it through" as opposed to a vanilla trigger to suppress.
 ///
 /// The Archipelago server replays a slot's *entire* item history every time we connect
 /// (IReceivedItemsHelper.AllItemsReceived grows to hold the full history, not just new
-/// items), so we track how many we've already applied in ApState and only apply the tail.
+/// items). Character/Blueprint/resource grants write into the game's own save file, so
+/// it's safe (and necessary, to avoid double-granting) to apply each one only once, tracked
+/// via ApState's cursor. Level Access and Land Expansion have no representation anywhere
+/// in the game's save file though - UnlockedLevels/LandExpansionCount live only in this
+/// mod's memory - so applying *those* once via the same cursor would silently lose them on
+/// every reconnect or process restart (the cursor says "already applied", so they'd never
+/// be re-added to the in-memory state). Recomputed from the full history every time instead.
 /// </summary>
 public static class ItemReceiver
 {
@@ -29,6 +39,10 @@ public static class ItemReceiver
 
     private static MelonLogger.Instance _log;
     private static ApState _state;
+
+    internal static bool IsApplyingItem { get; private set; }
+    internal static readonly HashSet<LevelType> UnlockedLevels = new();
+    internal static int LandExpansionCount { get; private set; }
 
     public static void CatchUp(IReceivedItemsHelper items, string slot, MelonLogger.Instance log)
     {
@@ -54,9 +68,12 @@ public static class ItemReceiver
             return;
 
         var all = items.AllItemsReceived;
+
+        RecomputeInMemoryState(all);
+
         for (var i = _state.AppliedItemCount; i < all.Count; i++)
         {
-            Apply(all[i].ItemName);
+            ApplyPersistent(all[i].ItemName);
             _state.AppliedItemCount = i + 1;
         }
 
@@ -70,45 +87,56 @@ public static class ItemReceiver
             Drain(items);
     }
 
-    private static void Apply(string itemName)
+    private static void RecomputeInMemoryState(ReadOnlyCollection<ItemInfo> all)
+    {
+        UnlockedLevels.Clear();
+        var landExpansionCount = 0;
+
+        foreach (var item in all)
+        {
+            var itemName = item.ItemName;
+
+            if (itemName.StartsWith("Level Access: "))
+            {
+                var display = itemName["Level Access: ".Length..];
+                if (GameNames.TryParseLevel(display, out var levelType))
+                    UnlockedLevels.Add(levelType);
+                else
+                    _log.Warning($"Unknown level access item: {itemName}");
+            }
+            else if (itemName == "Progressive Land Expansion")
+            {
+                landExpansionCount++;
+            }
+        }
+
+        LandExpansionCount = landExpansionCount;
+    }
+
+    /// <summary>Character/Blueprint/resource grants - applied once and tracked by ApState's cursor.</summary>
+    private static void ApplyPersistent(string itemName)
     {
         try
         {
             if (itemName.StartsWith("Character: "))
             {
-                var token = "k" + itemName["Character: ".Length..].Replace(" ", "");
-                if (Enum.TryParse<CharType>(token, out var charType))
-                {
-                    SaveMgr.I.UnlockChar(charType);
-                    _log.Msg($"Unlocked character {charType}");
-                }
+                var display = itemName["Character: ".Length..];
+                if (GameNames.TryParseCharacter(display, out var charType))
+                    ApplyGuarded(() => SaveMgr.I.UnlockChar(charType), $"Unlocked character {charType}");
                 else
-                {
                     _log.Warning($"Unknown character item: {itemName}");
-                }
             }
             else if (itemName.StartsWith("Blueprint: "))
             {
-                var token = "k" + itemName["Blueprint: ".Length..].Replace(" ", "");
-                if (Enum.TryParse<BuildingType>(token, out var buildingType))
-                {
-                    SaveMgr.I.GainBlueprint(buildingType);
-                    _log.Msg($"Gained blueprint {buildingType}");
-                }
+                var display = itemName["Blueprint: ".Length..];
+                if (GameNames.TryParseBuilding(display, out var buildingType))
+                    ApplyGuarded(() => SaveMgr.I.GainBlueprint(buildingType), $"Gained blueprint {buildingType}");
                 else
-                {
                     _log.Warning($"Unknown blueprint item: {itemName}");
-                }
             }
-            else if (itemName.StartsWith("Level Access: "))
+            else if (itemName.StartsWith("Level Access: ") || itemName == "Progressive Land Expansion")
             {
-                // TODO(Phase 3): wire into the level-select gate once LocationHooks exists.
-                _log.Msg($"Received {itemName} (level-access gating not implemented yet)");
-            }
-            else if (itemName == "Progressive Land Expansion")
-            {
-                // TODO(Phase 3): wire into the base-chunk purchase gate.
-                _log.Msg($"Received {itemName} (land-expansion gating not implemented yet)");
+                // Handled by RecomputeInMemoryState every Drain() call, not here.
             }
             else if (itemName is "Wood" or "Stone" or "Wheat" or "Gold")
             {
@@ -120,8 +148,9 @@ public static class ItemReceiver
                     "Gold" => ResourceType.kGold,
                     _ => throw new InvalidOperationException(),
                 };
-                SaveMgr.I.AddResources(resourceType, FillerResourceAmount, false, false);
-                _log.Msg($"Granted {FillerResourceAmount} {resourceType}");
+                ApplyGuarded(
+                    () => SaveMgr.I.AddResources(resourceType, FillerResourceAmount, false, false),
+                    $"Granted {FillerResourceAmount} {resourceType}");
             }
             else
             {
@@ -132,5 +161,20 @@ public static class ItemReceiver
         {
             _log.Error($"Failed to apply item '{itemName}': {e}");
         }
+    }
+
+    private static void ApplyGuarded(Action grant, string logMessage)
+    {
+        IsApplyingItem = true;
+        try
+        {
+            grant();
+        }
+        finally
+        {
+            IsApplyingItem = false;
+        }
+
+        _log.Msg(logMessage);
     }
 }

@@ -1,0 +1,119 @@
+// AUTO-GENERATED from shared/game_data.json. Do not hand-edit - regenerate instead.
+// Explicit tables, not a formula: several real display names (e.g. "Laboratory" for
+// kLab, "Sheriff's Office" for kSheriffOffice, "Smoldering Depths" for kHell) don't
+// reverse-parse from their enum token, so a mechanical camelCase-split/join approach
+// (which this used to be) silently produces wrong or unparseable names. Buildings not
+// confirmed against the wiki were dropped entirely rather than guessed at - see
+// shared/game_data.json's _comment for why.
+using Il2Cpp;
+
+namespace BallXPitArchipelago;
+
+internal static partial class GameNames
+{
+    internal static readonly System.Collections.Generic.Dictionary<CharType, string> CharacterNames = new()
+    {
+        { CharType.kRecaller, "Recaller" },
+        { CharType.kItchyFinger, "Itchy Finger" },
+        { CharType.kTunneller, "Tunneller" },
+        { CharType.kTiptoer, "Tiptoer" },
+        { CharType.kCogitator, "Cogitator" },
+        { CharType.kTactician, "Tactician" },
+        { CharType.kSpendthrift, "Spendthrift" },
+        { CharType.kEmbedded, "Embedded" },
+        { CharType.kRadicalAI, "Radical AI" },
+        { CharType.kEmptyNester, "Empty Nester" },
+        { CharType.kShade, "Shade" },
+        { CharType.kCohabitants, "Cohabitants" },
+        { CharType.kPhysicist, "Physicist" },
+        { CharType.kBrickHead, "Brick Head" },
+        { CharType.kSisyphus, "Sisyphus" },
+        { CharType.kFlagellant, "Flagellant" },
+        { CharType.kWimp, "Wimp" },
+        { CharType.kPackRat, "Pack Rat" },
+        { CharType.kFalconer, "Falconer" },
+        { CharType.kCarouser, "Carouser" },
+        { CharType.kBackpacker, "Backpacker" },
+        { CharType.kInfluencer, "Influencer" },
+    };
+
+    internal static readonly System.Collections.Generic.Dictionary<BuildingType, string> BuildingNames = new()
+    {
+        { BuildingType.kWheelwright, "Wheelwright" },
+        { BuildingType.kMilitaryAcademy, "Military Academy" },
+        { BuildingType.kAlchemist, "Alchemist" },
+        { BuildingType.kConsulate, "Consulate" },
+        { BuildingType.kAbbey, "Abbey" },
+        { BuildingType.kUniversity, "University" },
+        { BuildingType.kArcheryRange, "Archery Range" },
+        { BuildingType.kFarm, "Farm" },
+        { BuildingType.kWheatField, "Wheat Field" },
+        { BuildingType.kLumberyard, "Lumberyard" },
+        { BuildingType.kForest, "Forest" },
+        { BuildingType.kStoneMine, "Stone Mine" },
+        { BuildingType.kSchoolhouse, "Schoolhouse" },
+        { BuildingType.kDiplomacyHall, "Diplomacy Hall" },
+        { BuildingType.kShoemaker, "Shoemaker" },
+        { BuildingType.kGunsmith, "Gunsmith" },
+        { BuildingType.kBarracks, "Barracks" },
+        { BuildingType.kClinic, "Clinic" },
+        { BuildingType.kMarket, "Market" },
+        { BuildingType.kJeweler, "Jeweler" },
+        { BuildingType.kNecromancer, "Necromancer" },
+        { BuildingType.kBagMaker, "Bag Maker" },
+        { BuildingType.kCarpenter, "Carpenter" },
+        { BuildingType.kGoldMine, "Gold Mine" },
+        { BuildingType.kBank, "Bank" },
+        { BuildingType.kBoulder, "Boulder" },
+        { BuildingType.kGemsmith, "Gemsmith" },
+        { BuildingType.kAntiqueShop, "Antique Shop" },
+        { BuildingType.kGatherersHut, "Gatherer's Hut" },
+        { BuildingType.kWatchTower, "Watch Tower" },
+        { BuildingType.kMatchMaker, "Matchmaker" },
+        { BuildingType.kMagnetFactory, "Magnet Factory" },
+        { BuildingType.kCandleMaker, "Candle Maker" },
+        { BuildingType.kGamblersDen, "Gambler's Den" },
+        { BuildingType.kCasino, "Casino" },
+        { BuildingType.kWishingWell, "Wishing Well" },
+        { BuildingType.kEvolutionChamber, "Evolution Chamber" },
+        { BuildingType.kRelicCollector, "Relic Collector" },
+        { BuildingType.kMeditationTent, "Meditation Tent" },
+        { BuildingType.kWarRoom, "War Room" },
+        { BuildingType.kHauntedHouse, "Haunted House" },
+        { BuildingType.kSheriffOffice, "Sheriff's Office" },
+        { BuildingType.kVeteranHut, "Veteran's Hut" },
+        { BuildingType.kMansion, "Mansion" },
+        { BuildingType.kCozyHome, "Cozy Home" },
+        { BuildingType.kVilla, "Villa" },
+        { BuildingType.kMausoleum, "Mausoleum" },
+        { BuildingType.kCaptainQuarters, "Captain's Quarters" },
+        { BuildingType.kCampground, "Campground" },
+        { BuildingType.kSingleFamilyHome, "Single Family Home" },
+        { BuildingType.kRockyHill, "Rocky Hill" },
+        { BuildingType.kMonastery, "Monastery" },
+        { BuildingType.kLab, "Laboratory" },
+        { BuildingType.kDenseWheat, "Dense Wheat" },
+        { BuildingType.kGrandTree, "Grand Tree" },
+        { BuildingType.kGraniteSlab, "Granite Slab" },
+        { BuildingType.kStoneDomain, "Stone Domain" },
+        { BuildingType.kHiddenTemple, "Hidden Temple" },
+        { BuildingType.kUnstableTower, "Unstable Tower" },
+        { BuildingType.kFalconryHut, "Falconry Hut" },
+        { BuildingType.kPartyHouse, "Party House" },
+        { BuildingType.kExorcist, "Exorcist" },
+        { BuildingType.kGuildHall, "Guild Hall" },
+        { BuildingType.kAdventurersGuild, "Adventurer's Guild" },
+    };
+
+    internal static readonly System.Collections.Generic.Dictionary<LevelType, string> LevelNames = new()
+    {
+        { LevelType.kGraveyard, "Graveyard" },
+        { LevelType.kSnowy, "Snowy" },
+        { LevelType.kSavanna, "Savanna" },
+        { LevelType.kHell, "Smoldering Depths" },
+        { LevelType.kClouds, "Clouds" },
+        { LevelType.kMoon, "Vast Void" },
+        { LevelType.kShroom, "Shroom" },
+        { LevelType.kDesert, "Desert" },
+    };
+}

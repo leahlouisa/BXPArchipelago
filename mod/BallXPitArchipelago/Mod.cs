@@ -1,4 +1,6 @@
+using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
+using UnityEngine;
 
 [assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.1.0", "leahlouisa")]
 [assembly: MelonGame("Kenny Sun", "BALL x PIT")]
@@ -9,15 +11,14 @@ public class Mod : MelonMod
 {
     public override void OnInitializeMelon()
     {
-        var config = ApConfig.Load(LoggerInstance);
-        if (config == null)
-        {
-            LoggerInstance.Warning("No Archipelago config found; the mod will stay idle. " +
-                                    "Fill in BallXPitArchipelago.json next to this DLL and restart the game.");
-            return;
-        }
+        LocationHooks.Log = LoggerInstance;
 
-        ApConnection.Connect(config, LoggerInstance);
+        ClassInjector.RegisterTypeInIl2Cpp<ApGui>();
+        ApGui.Init(ApConfig.Load(LoggerInstance));
+
+        var guiObject = new GameObject("BallXPitArchipelago GUI");
+        guiObject.AddComponent<ApGui>();
+        UnityEngine.Object.DontDestroyOnLoad(guiObject);
     }
 
     public override void OnApplicationQuit()
@@ -30,9 +31,12 @@ public class Mod : MelonMod
     public override void OnUpdate()
     {
         // Cheap throttle: only worth checking a few times a second.
-        if (ApConnection.Session == null || ++_frameCounter % 30 != 0)
+        if (++_frameCounter % 30 != 0)
             return;
 
-        ItemReceiver.RetryPending(ApConnection.Session.Items);
+        LocationHooks.PollForChanges();
+
+        if (ApConnection.Session != null)
+            ItemReceiver.RetryPending(ApConnection.Session.Items);
     }
 }

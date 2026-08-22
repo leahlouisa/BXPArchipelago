@@ -14,7 +14,8 @@ public static class ApConnection
 
     public static ArchipelagoSession Session { get; private set; }
 
-    public static void Connect(ApConfig config, MelonLogger.Instance log)
+    /// <summary>Attempts to connect. Returns null on success, or an error message to show the player.</summary>
+    public static string Connect(ApConfig config, MelonLogger.Instance log)
     {
         ArchipelagoSession session;
         try
@@ -23,8 +24,9 @@ public static class ApConnection
         }
         catch (Exception e)
         {
-            log.Error($"Could not create a session for {config.Host}:{config.Port}: {e.Message}");
-            return;
+            var msg = $"Could not create a session for {config.Host}:{config.Port}: {e.Message}";
+            log.Error(msg);
+            return msg;
         }
 
         LoginResult result;
@@ -38,8 +40,9 @@ public static class ApConnection
         }
         catch (Exception e)
         {
-            log.Error($"Connection to {config.Host}:{config.Port} failed: {e.Message}");
-            return;
+            var msg = $"Connection to {config.Host}:{config.Port} failed: {e.Message}";
+            log.Error(msg);
+            return msg;
         }
 
         if (!result.Successful)
@@ -50,7 +53,7 @@ public static class ApConnection
                 log.Error($"    {error}");
             foreach (var errorCode in failure.ErrorCodes)
                 log.Error($"    {errorCode}");
-            return;
+            return string.Join("\n", failure.Errors);
         }
 
         Session = session;
@@ -60,6 +63,8 @@ public static class ApConnection
 
         session.Items.ItemReceived += ItemReceiver.OnItemReceived;
         ItemReceiver.CatchUp(session.Items, config.Slot, log);
+
+        return null;
     }
 
     public static void Disconnect()
