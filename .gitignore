@@ -1,0 +1,6 @@
+mod/**/bin/
+mod/**/obj/
+*.apworld
+
+# Machine-specific: your local Ball X Pit install path. Copy GameDir.props.example instead.
+mod/**/GameDir.props

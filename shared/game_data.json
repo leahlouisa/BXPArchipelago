@@ -1,0 +1,548 @@
+﻿{
+    "characters":  [
+                       {
+                           "enum":  "kRecaller",
+                           "display":  "Recaller"
+                       },
+                       {
+                           "enum":  "kItchyFinger",
+                           "display":  "Itchy Finger"
+                       },
+                       {
+                           "enum":  "kTunneller",
+                           "display":  "Tunneller"
+                       },
+                       {
+                           "enum":  "kTiptoer",
+                           "display":  "Tiptoer"
+                       },
+                       {
+                           "enum":  "kCogitator",
+                           "display":  "Cogitator"
+                       },
+                       {
+                           "enum":  "kTactician",
+                           "display":  "Tactician"
+                       },
+                       {
+                           "enum":  "kSpendthrift",
+                           "display":  "Spendthrift"
+                       },
+                       {
+                           "enum":  "kEmbedded",
+                           "display":  "Embedded"
+                       },
+                       {
+                           "enum":  "kRadicalAI",
+                           "display":  "Radical AI"
+                       },
+                       {
+                           "enum":  "kEmptyNester",
+                           "display":  "Empty Nester"
+                       },
+                       {
+                           "enum":  "kShade",
+                           "display":  "Shade"
+                       },
+                       {
+                           "enum":  "kCohabitants",
+                           "display":  "Cohabitants"
+                       },
+                       {
+                           "enum":  "kPhysicist",
+                           "display":  "Physicist"
+                       },
+                       {
+                           "enum":  "kBrickHead",
+                           "display":  "Brick Head"
+                       },
+                       {
+                           "enum":  "kSisyphus",
+                           "display":  "Sisyphus"
+                       },
+                       {
+                           "enum":  "kFlagellant",
+                           "display":  "Flagellant"
+                       },
+                       {
+                           "enum":  "kWimp",
+                           "display":  "Wimp"
+                       },
+                       {
+                           "enum":  "kPackRat",
+                           "display":  "Pack Rat"
+                       },
+                       {
+                           "enum":  "kFalconer",
+                           "display":  "Falconer"
+                       },
+                       {
+                           "enum":  "kCarouser",
+                           "display":  "Carouser"
+                       },
+                       {
+                           "enum":  "kBackpacker",
+                           "display":  "Backpacker"
+                       },
+                       {
+                           "enum":  "kInfluencer",
+                           "display":  "Influencer"
+                       }
+                   ],
+    "buildings":  [
+                      {
+                          "enum":  "kWheelwright",
+                          "display":  "Wheelwright"
+                      },
+                      {
+                          "enum":  "kMilitaryAcademy",
+                          "display":  "Military Academy"
+                      },
+                      {
+                          "enum":  "kAlchemist",
+                          "display":  "Alchemist"
+                      },
+                      {
+                          "enum":  "kConsulate",
+                          "display":  "Consulate"
+                      },
+                      {
+                          "enum":  "kAbbey",
+                          "display":  "Abbey"
+                      },
+                      {
+                          "enum":  "kUniversity",
+                          "display":  "University"
+                      },
+                      {
+                          "enum":  "kArcheryRange",
+                          "display":  "Archery Range"
+                      },
+                      {
+                          "enum":  "kHome",
+                          "display":  "Home"
+                      },
+                      {
+                          "enum":  "kFarm",
+                          "display":  "Farm"
+                      },
+                      {
+                          "enum":  "kWheatField",
+                          "display":  "Wheat Field"
+                      },
+                      {
+                          "enum":  "kLumberyard",
+                          "display":  "Lumberyard"
+                      },
+                      {
+                          "enum":  "kForest",
+                          "display":  "Forest"
+                      },
+                      {
+                          "enum":  "kStoneMine",
+                          "display":  "Stone Mine"
+                      },
+                      {
+                          "enum":  "kSchoolhouse",
+                          "display":  "Schoolhouse"
+                      },
+                      {
+                          "enum":  "kDiplomacyHall",
+                          "display":  "Diplomacy Hall"
+                      },
+                      {
+                          "enum":  "kAerodrome",
+                          "display":  "Aerodrome"
+                      },
+                      {
+                          "enum":  "kShoemaker",
+                          "display":  "Shoemaker"
+                      },
+                      {
+                          "enum":  "kGunsmith",
+                          "display":  "Gunsmith"
+                      },
+                      {
+                          "enum":  "kBarracks",
+                          "display":  "Barracks"
+                      },
+                      {
+                          "enum":  "kClinic",
+                          "display":  "Clinic"
+                      },
+                      {
+                          "enum":  "kMarket",
+                          "display":  "Market"
+                      },
+                      {
+                          "enum":  "kJeweler",
+                          "display":  "Jeweler"
+                      },
+                      {
+                          "enum":  "kNecromancer",
+                          "display":  "Necromancer"
+                      },
+                      {
+                          "enum":  "kMasseuse",
+                          "display":  "Masseuse"
+                      },
+                      {
+                          "enum":  "kBagMaker",
+                          "display":  "Bag Maker"
+                      },
+                      {
+                          "enum":  "kCarpenter",
+                          "display":  "Carpenter"
+                      },
+                      {
+                          "enum":  "kGoldMine",
+                          "display":  "Gold Mine"
+                      },
+                      {
+                          "enum":  "kBank",
+                          "display":  "Bank"
+                      },
+                      {
+                          "enum":  "kGranary",
+                          "display":  "Granary"
+                      },
+                      {
+                          "enum":  "kWoodShed",
+                          "display":  "Wood Shed"
+                      },
+                      {
+                          "enum":  "kStoneStorage",
+                          "display":  "Stone Storage"
+                      },
+                      {
+                          "enum":  "kIdleManagement",
+                          "display":  "Idle Management"
+                      },
+                      {
+                          "enum":  "kFertilizer",
+                          "display":  "Fertilizer"
+                      },
+                      {
+                          "enum":  "kRefinery",
+                          "display":  "Refinery"
+                      },
+                      {
+                          "enum":  "kEnduranceStatue",
+                          "display":  "Endurance Statue"
+                      },
+                      {
+                          "enum":  "kStrengthStatue",
+                          "display":  "Strength Statue"
+                      },
+                      {
+                          "enum":  "kLeadershipStatue",
+                          "display":  "Leadership Statue"
+                      },
+                      {
+                          "enum":  "kSpeedStatue",
+                          "display":  "Speed Statue"
+                      },
+                      {
+                          "enum":  "kDexterityStatue",
+                          "display":  "Dexterity Statue"
+                      },
+                      {
+                          "enum":  "kIntelligenceStatue",
+                          "display":  "Intelligence Statue"
+                      },
+                      {
+                          "enum":  "kBoulder",
+                          "display":  "Boulder"
+                      },
+                      {
+                          "enum":  "kGraveyardIdol",
+                          "display":  "Graveyard Idol"
+                      },
+                      {
+                          "enum":  "kBattlefieldIdol",
+                          "display":  "Battlefield Idol"
+                      },
+                      {
+                          "enum":  "kSavannaIdol",
+                          "display":  "Savanna Idol"
+                      },
+                      {
+                          "enum":  "kHellIdol",
+                          "display":  "Hell Idol"
+                      },
+                      {
+                          "enum":  "kHeavenIdol",
+                          "display":  "Heaven Idol"
+                      },
+                      {
+                          "enum":  "kIdleLauncher",
+                          "display":  "Idle Launcher"
+                      },
+                      {
+                          "enum":  "kGemsmith",
+                          "display":  "Gemsmith"
+                      },
+                      {
+                          "enum":  "kAntiqueShop",
+                          "display":  "Antique Shop"
+                      },
+                      {
+                          "enum":  "kGatherersHut",
+                          "display":  "Gatherers Hut"
+                      },
+                      {
+                          "enum":  "kTreeFertilizer",
+                          "display":  "Tree Fertilizer"
+                      },
+                      {
+                          "enum":  "kStonePile",
+                          "display":  "Stone Pile"
+                      },
+                      {
+                          "enum":  "kBabyWorkerCross",
+                          "display":  "Baby Worker Cross"
+                      },
+                      {
+                          "enum":  "kBabyWorkerX",
+                          "display":  "Baby Worker X"
+                      },
+                      {
+                          "enum":  "kHatchery",
+                          "display":  "Hatchery"
+                      },
+                      {
+                          "enum":  "kBeastMaster",
+                          "display":  "Beast Master"
+                      },
+                      {
+                          "enum":  "kPetLab",
+                          "display":  "Pet Lab"
+                      },
+                      {
+                          "enum":  "kWatchTower",
+                          "display":  "Watch Tower"
+                      },
+                      {
+                          "enum":  "kCobbler",
+                          "display":  "Cobbler"
+                      },
+                      {
+                          "enum":  "kStoneRoad",
+                          "display":  "Stone Road"
+                      },
+                      {
+                          "enum":  "kShroomIdol",
+                          "display":  "Shroom Idol"
+                      },
+                      {
+                          "enum":  "kDesertIdol",
+                          "display":  "Desert Idol"
+                      },
+                      {
+                          "enum":  "kMatchMaker",
+                          "display":  "Match Maker"
+                      },
+                      {
+                          "enum":  "kMagnetFactory",
+                          "display":  "Magnet Factory"
+                      },
+                      {
+                          "enum":  "kCandleMaker",
+                          "display":  "Candle Maker"
+                      },
+                      {
+                          "enum":  "kGamblersDen",
+                          "display":  "Gamblers Den"
+                      },
+                      {
+                          "enum":  "kCasino",
+                          "display":  "Casino"
+                      },
+                      {
+                          "enum":  "kWishingWell",
+                          "display":  "Wishing Well"
+                      },
+                      {
+                          "enum":  "kEvolutionChamber",
+                          "display":  "Evolution Chamber"
+                      },
+                      {
+                          "enum":  "kRelicCollector",
+                          "display":  "Relic Collector"
+                      },
+                      {
+                          "enum":  "kAnimalDoctor",
+                          "display":  "Animal Doctor"
+                      },
+                      {
+                          "enum":  "kMeditationTent",
+                          "display":  "Meditation Tent"
+                      },
+                      {
+                          "enum":  "kIdleFarm",
+                          "display":  "Idle Farm"
+                      },
+                      {
+                          "enum":  "kIdleLumberyard",
+                          "display":  "Idle Lumberyard"
+                      },
+                      {
+                          "enum":  "kIdleStoneMine",
+                          "display":  "Idle Stone Mine"
+                      },
+                      {
+                          "enum":  "kWarRoom",
+                          "display":  "War Room"
+                      },
+                      {
+                          "enum":  "kRocketSilo",
+                          "display":  "Rocket Silo"
+                      },
+                      {
+                          "enum":  "kHauntedHouse",
+                          "display":  "Haunted House"
+                      },
+                      {
+                          "enum":  "kSheriffOffice",
+                          "display":  "Sheriff Office"
+                      },
+                      {
+                          "enum":  "kVeteranHut",
+                          "display":  "Veteran Hut"
+                      },
+                      {
+                          "enum":  "kMansion",
+                          "display":  "Mansion"
+                      },
+                      {
+                          "enum":  "kHovel",
+                          "display":  "Hovel"
+                      },
+                      {
+                          "enum":  "kCozyHome",
+                          "display":  "Cozy Home"
+                      },
+                      {
+                          "enum":  "kVilla",
+                          "display":  "Villa"
+                      },
+                      {
+                          "enum":  "kMausoleum",
+                          "display":  "Mausoleum"
+                      },
+                      {
+                          "enum":  "kBrickHouse",
+                          "display":  "Brick House"
+                      },
+                      {
+                          "enum":  "kCaptainQuarters",
+                          "display":  "Captain Quarters"
+                      },
+                      {
+                          "enum":  "kCampground",
+                          "display":  "Campground"
+                      },
+                      {
+                          "enum":  "kSingleFamilyHome",
+                          "display":  "Single Family Home"
+                      },
+                      {
+                          "enum":  "kRockyHill",
+                          "display":  "Rocky Hill"
+                      },
+                      {
+                          "enum":  "kMonastery",
+                          "display":  "Monastery"
+                      },
+                      {
+                          "enum":  "kLab",
+                          "display":  "Lab"
+                      },
+                      {
+                          "enum":  "kDenseWheat",
+                          "display":  "Dense Wheat"
+                      },
+                      {
+                          "enum":  "kGrandTree",
+                          "display":  "Grand Tree"
+                      },
+                      {
+                          "enum":  "kGraniteSlab",
+                          "display":  "Granite Slab"
+                      },
+                      {
+                          "enum":  "kMoonIdol",
+                          "display":  "Moon Idol"
+                      },
+                      {
+                          "enum":  "kStoneDomain",
+                          "display":  "Stone Domain"
+                      },
+                      {
+                          "enum":  "kHiddenTemple",
+                          "display":  "Hidden Temple"
+                      },
+                      {
+                          "enum":  "kUnstableTower",
+                          "display":  "Unstable Tower"
+                      },
+                      {
+                          "enum":  "kFalconryHut",
+                          "display":  "Falconry Hut"
+                      },
+                      {
+                          "enum":  "kPartyHouse",
+                          "display":  "Party House"
+                      },
+                      {
+                          "enum":  "kLogCabin",
+                          "display":  "Log Cabin"
+                      },
+                      {
+                          "enum":  "kExorcist",
+                          "display":  "Exorcist"
+                      },
+                      {
+                          "enum":  "kGuildHall",
+                          "display":  "Guild Hall"
+                      },
+                      {
+                          "enum":  "kAdventurersGuild",
+                          "display":  "Adventurers Guild"
+                      }
+                  ],
+    "levels":  [
+                   {
+                       "enum":  "kGraveyard",
+                       "display":  "Graveyard"
+                   },
+                   {
+                       "enum":  "kSnowy",
+                       "display":  "Snowy"
+                   },
+                   {
+                       "enum":  "kSavanna",
+                       "display":  "Savanna"
+                   },
+                   {
+                       "enum":  "kHell",
+                       "display":  "Hell"
+                   },
+                   {
+                       "enum":  "kClouds",
+                       "display":  "Clouds"
+                   },
+                   {
+                       "enum":  "kMoon",
+                       "display":  "Moon"
+                   },
+                   {
+                       "enum":  "kShroom",
+                       "display":  "Shroom"
+                   },
+                   {
+                       "enum":  "kDesert",
+                       "display":  "Desert"
+                   }
+               ]
+}

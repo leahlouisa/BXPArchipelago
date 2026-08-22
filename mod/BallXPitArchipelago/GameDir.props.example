@@ -1,0 +1,13 @@
+<Project>
+  <!--
+    Copy this file to GameDir.props (same folder) and edit GameDir below to point at your
+    own local Ball X Pit install. GameDir.props is gitignored - it's specific to your
+    machine and should never be committed.
+
+    The install must already have MelonLoader installed and have been launched at least
+    once, so that MelonLoader\Il2CppAssemblies\ exists (see README.md).
+  -->
+  <PropertyGroup>
+    <GameDir>C:\Path\To\Your\BALLxPIT</GameDir>
+  </PropertyGroup>
+</Project>
