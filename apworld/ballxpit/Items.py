@@ -13,10 +13,11 @@ _game_data = json.loads(
 )
 
 # Number of purchasable base-expansion chunks the randomizer models. This is a guessed
-# round number, not the game's true physical cap (which we don't know exactly) - the mod
-# gates real purchases to however many "Progressive Land Expansion" items have been
-# received, so this number just needs to match between Items.py and Locations.py. Safe to
-# tune later once real playtesting shows the actual max is meaningfully different.
+# round number, not the game's true physical cap (which we don't know exactly) - purchases
+# are unrestricted vanilla (see ConfirmExpansionLocationPatch in the mod), this number just
+# needs to match between Items.py and Locations.py so "Land Expansion #n" locations exist
+# for however many chunks a player could plausibly buy. Safe to tune later once real
+# playtesting shows the actual max is meaningfully different.
 LAND_EXPANSION_COUNT = 15
 LAND_EXPANSION_ITEM_ID = 900400
 
@@ -60,9 +61,11 @@ for _b in _game_data["buildings"]:
 for _l in _game_data["levels"]:
     item_table[f"Level Access: {_l['display']}"] = ItemData(_l["id"], ItemClassification.progression)
 
-# Progressive Land Expansion gates the "Land Expansion #n" locations (see Rules.py), so it's
-# progression too even though it isn't needed for the goal itself.
-item_table["Progressive Land Expansion"] = ItemData(LAND_EXPANSION_ITEM_ID, ItemClassification.progression)
+# Not progression: "Land Expansion #n" locations have no access rule (land expansion
+# purchases are unrestricted vanilla - see ConfirmExpansionLocationPatch in the mod), so
+# this doesn't gate anything. Useful rather than filler since it's still a distinct,
+# thematic reward, same tier as Character/Blueprint items.
+item_table["Progressive Land Expansion"] = ItemData(LAND_EXPANSION_ITEM_ID, ItemClassification.useful)
 
 for _name, _code in FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)

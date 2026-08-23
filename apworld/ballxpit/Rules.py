@@ -1,5 +1,5 @@
 from .Items import level_access_item_names
-from .Locations import complete_level_location_names, land_expansion_location_names
+from .Locations import complete_level_location_names
 
 
 def set_rules(world) -> None:
@@ -13,11 +13,10 @@ def set_rules(world) -> None:
         location = multiworld.get_location(level_loc_name, player)
         location.access_rule = lambda state, item=access_item: state.has(item, player)
 
-    # Land Expansion locations unlock progressively: the mod only lets you purchase the
-    # Nth base chunk once you've received N copies of "Progressive Land Expansion".
-    for count, loc_name in enumerate(land_expansion_location_names, start=1):
-        location = multiworld.get_location(loc_name, player)
-        location.access_rule = lambda state, n=count: state.has("Progressive Land Expansion", player, n)
+    # "Land Expansion #n" locations have no access rule (same as Elevator Upgrade
+    # locations): purchases are unrestricted vanilla, not gated on any received item - see
+    # ConfirmExpansionLocationPatch in the mod. Whether a player can actually reach #n
+    # in-game depends on the vanilla resource economy, which isn't modeled in logic.
 
     # Goal: be able to attempt (and therefore, in practice, complete) all 8 biomes. Actual
     # in-game completion is signaled by the mod calling session.SetGoalAchieved() once all

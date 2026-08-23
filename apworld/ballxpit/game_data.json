@@ -1,5 +1,5 @@
 {
-  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked against https://ballxpit.wiki.gg/wiki/Buildings and per-level wiki pages. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces). Buildings not confirmed against the wiki (likely unused/cut BuildingType enum values - granting them does nothing visible in-game, confirmed live) were dropped rather than guessed at; do not renumber surviving entries if this file is regenerated again - only append or drop.",
+  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked against https://ballxpit.wiki.gg/wiki/Buildings and per-level wiki pages. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces), computed as 900100 + the entry's ordinal position in the real BuildingType enum - so a later-added entry's id is fixed by its enum position, not by append order. Buildings not confirmed against the wiki (likely unused/cut BuildingType enum values - granting them does nothing visible in-game, confirmed live) were dropped rather than guessed at. The 8 kXIdol entries (display name '... Trophy') are the per-level first-completion reward buildings - confirmed real and live (granted automatically on first level completion) but initially missed because they aren't on the general Buildings wiki page, only inferable from the per-Level pages; added after being reported as still-vanilla behavior post-launch. Do not renumber surviving entries if this file is regenerated again - only append or drop.",
   "characters": [
     {
       "enum": "kRecaller",
@@ -244,6 +244,31 @@
       "id": 900140
     },
     {
+      "enum": "kGraveyardIdol",
+      "display": "Boneyard Trophy",
+      "id": 900141
+    },
+    {
+      "enum": "kBattlefieldIdol",
+      "display": "Snowy Trophy",
+      "id": 900142
+    },
+    {
+      "enum": "kSavannaIdol",
+      "display": "Gory Trophy",
+      "id": 900143
+    },
+    {
+      "enum": "kHellIdol",
+      "display": "Smoldering Trophy",
+      "id": 900144
+    },
+    {
+      "enum": "kHeavenIdol",
+      "display": "Heavenly Trophy",
+      "id": 900145
+    },
+    {
       "enum": "kGemsmith",
       "display": "Gemsmith",
       "id": 900147
@@ -262,6 +287,16 @@
       "enum": "kWatchTower",
       "display": "Watch Tower",
       "id": 900157
+    },
+    {
+      "enum": "kShroomIdol",
+      "display": "Shroom Trophy",
+      "id": 900160
+    },
+    {
+      "enum": "kDesertIdol",
+      "display": "Desert Trophy",
+      "id": 900161
     },
     {
       "enum": "kMatchMaker",
@@ -392,6 +427,11 @@
       "enum": "kGraniteSlab",
       "display": "Granite Slab",
       "id": 900194
+    },
+    {
+      "enum": "kMoonIdol",
+      "display": "Void Trophy",
+      "id": 900195
     },
     {
       "enum": "kStoneDomain",

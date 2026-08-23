@@ -5,9 +5,10 @@ using MelonLoader;
 namespace BallXPitArchipelago;
 
 /// <summary>
-/// Converts vanilla progression triggers into Archipelago location checks, and gates the
-/// systems that don't have a vanilla "trigger" to convert (level access, land expansion)
-/// so they instead depend on AP items via ItemReceiver's tracked state.
+/// Converts vanilla progression triggers into Archipelago location checks. Level access is
+/// the only system gated on AP items via ItemReceiver's tracked state (it has no vanilla
+/// "trigger" of its own to convert) - everything else, including land expansion, lets the
+/// real vanilla action happen unconditionally and just reports it as a check afterward.
 ///
 /// Location name convention (must match the ballxpit apworld's location table):
 ///   "Character: {display}"    - vanilla SaveMgr.UnlockChar call site (suppressed unless
@@ -16,6 +17,10 @@ namespace BallXPitArchipelago;
 ///   "Complete Level: {display}" - LevelData[i].DidComplete flips false -> true
 ///   "Elevator Upgrade #{n}"   - vanilla BaseMgr.RunElevatorUpgrade call site (not
 ///                                 suppressed - the upgrade still happens normally)
+///   "Land Expansion #{n}"     - vanilla BaseGridMgr.ConfirmExpansion call site (not
+///                                 suppressed either, same reasoning as Elevator Upgrade -
+///                                 see ConfirmExpansionLocationPatch for why it used to
+///                                 block and no longer does)
 ///
 /// See Phase 2 findings (project memory / plan doc) for why levels/chunks need polling
 /// instead of a direct property-setter patch: LevelData.DidComplete and
@@ -25,6 +30,9 @@ internal static class LocationHooks
 {
     /// <summary>Must match the apworld's Items.py ELEVATOR_UPGRADE_COUNT.</summary>
     internal const int ElevatorUpgradeCount = 7;
+
+    /// <summary>Must match the apworld's Items.py LAND_EXPANSION_COUNT.</summary>
+    internal const int LandExpansionCount = 15;
 
     internal static MelonLogger.Instance Log;
 
@@ -178,25 +186,30 @@ internal static class RunElevatorUpgradeLocationPatch
 }
 
 /// <summary>
-/// Gates base-chunk expansion to however many "Progressive Land Expansion" items have
-/// been received, regardless of whether the player can otherwise afford it in-game.
+/// Land expansion purchases stay completely vanilla (resources spent, chunk unlocked, no
+/// gating) - originally this blocked the purchase until enough "Progressive Land Expansion"
+/// items had been received, but that meant clicking a chunk you couldn't afford *yet* under
+/// AP looked identical to clicking one you could afford in-game but hadn't been granted -
+/// confusingly silent either way. Postfix instead, same non-blocking pattern as
+/// RunElevatorUpgradeLocationPatch: the real purchase always happens, and afterward sends a
+/// check for whichever "Land Expansion #n" that purchase corresponds to.
 /// </summary>
 [HarmonyPatch(typeof(BaseGridMgr), nameof(BaseGridMgr.ConfirmExpansion))]
-internal static class ConfirmExpansionGatePatch
+internal static class ConfirmExpansionLocationPatch
 {
-    private static bool Prefix()
+    private static void Postfix()
     {
         if (ApConnection.Session == null)
-            return true;
+            return;
 
         var purchased = MetaSaveData.I?.GetNumPurchasedChunks() ?? 0;
-        if (purchased >= ItemReceiver.LandExpansionCount)
+        if (purchased < 1 || purchased > LocationHooks.LandExpansionCount)
         {
-            LocationHooks.Log?.Msg(
-                $"Blocked base expansion: {purchased} chunks purchased, only {ItemReceiver.LandExpansionCount} Progressive Land Expansion item(s) received.");
-            return false;
+            LocationHooks.Log?.Warning(
+                $"BaseGridMgr.ConfirmExpansion fired but purchased={purchased} is outside the expected 1..{LocationHooks.LandExpansionCount} range - no matching location, skipping.");
+            return;
         }
 
-        return true;
+        LocationHooks.SendCheck($"Land Expansion #{purchased}");
     }
 }

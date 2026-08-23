@@ -14,8 +14,9 @@ namespace BallXPitArchipelago;
 ///   "Blueprint: {display}"        -> SaveMgr.I.GainBlueprint(BuildingType.k{Token})
 ///   "Level Access: {display}"     -> added to UnlockedLevels, read by LocationHooks'
 ///                                     LevelSelectItem.InitLocked gate
-///   "Progressive Land Expansion"  -> counted into LandExpansionCount, read by LocationHooks'
-///                                     BaseGridMgr.ConfirmExpansion gate
+///   "Progressive Land Expansion"  -> purely cosmetic, no gameplay effect (land expansion
+///                                     purchases are unrestricted vanilla - see
+///                                     ConfirmExpansionLocationPatch in LocationHooks.cs)
 ///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant
 ///
 /// Characters and Blueprints are also grantable by vanilla game logic - LocationHooks
@@ -27,11 +28,11 @@ namespace BallXPitArchipelago;
 /// (IReceivedItemsHelper.AllItemsReceived grows to hold the full history, not just new
 /// items). Character/Blueprint/resource grants write into the game's own save file, so
 /// it's safe (and necessary, to avoid double-granting) to apply each one only once, tracked
-/// via ApState's cursor. Level Access and Land Expansion have no representation anywhere
-/// in the game's save file though - UnlockedLevels/LandExpansionCount live only in this
-/// mod's memory - so applying *those* once via the same cursor would silently lose them on
-/// every reconnect or process restart (the cursor says "already applied", so they'd never
-/// be re-added to the in-memory state). Recomputed from the full history every time instead.
+/// via ApState's cursor. Level Access has no representation anywhere in the game's save file
+/// though - UnlockedLevels lives only in this mod's memory - so applying it once via the same
+/// cursor would silently lose it on every reconnect or process restart (the cursor says
+/// "already applied", so it'd never be re-added to the in-memory state). Recomputed from the
+/// full history every time instead.
 ///
 /// Deliberately not wired to session.Items.ItemReceived: that event fires on Archipelago's
 /// network thread, and SaveMgr/IL2CPP calls aren't safe off Unity's main thread. Instead
@@ -48,7 +49,6 @@ public static class ItemReceiver
 
     internal static bool IsApplyingItem { get; private set; }
     internal static readonly HashSet<LevelType> UnlockedLevels = new();
-    internal static int LandExpansionCount { get; private set; }
 
     public static void CatchUp(IReceivedItemsHelper items, string slot, string seedName, MelonLogger.Instance log)
     {
@@ -108,7 +108,6 @@ public static class ItemReceiver
     private static void RecomputeInMemoryState(ReadOnlyCollection<ItemInfo> all)
     {
         UnlockedLevels.Clear();
-        var landExpansionCount = 0;
 
         foreach (var item in all)
         {
@@ -122,13 +121,7 @@ public static class ItemReceiver
                 else
                     _log.Warning($"Unknown level access item: {itemName}");
             }
-            else if (itemName == "Progressive Land Expansion")
-            {
-                landExpansionCount++;
-            }
         }
-
-        LandExpansionCount = landExpansionCount;
     }
 
     /// <summary>
@@ -163,9 +156,16 @@ public static class ItemReceiver
             return TryApplyGuarded(() => SaveMgr.I.GainBlueprint(buildingType), $"Gained blueprint {buildingType}", itemName);
         }
 
-        if (itemName.StartsWith("Level Access: ") || itemName == "Progressive Land Expansion")
+        if (itemName.StartsWith("Level Access: "))
         {
             // Handled by RecomputeInMemoryState every Drain() call, not here.
+            return true;
+        }
+
+        if (itemName == "Progressive Land Expansion")
+        {
+            // Purely cosmetic - land expansion purchases are unrestricted vanilla, see
+            // ConfirmExpansionLocationPatch. Nothing to apply.
             return true;
         }
 
