@@ -13,19 +13,19 @@ An [Archipelago](https://archipelago.gg) randomizer integration for [Ball X Pit]
 
 Complete all 8 biome levels.
 
-### Checks (~124 total)
+### Checks (~133 total)
 
 - Unlocking a character (22)
 - Unlocking a building blueprint, including each biome's first-completion "Trophy" (72)
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
-- Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (15)
+- Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (24 - the game has 25 total land tracts, 1 of which you start with)
 
-### Items (124 total, matching the check count exactly)
+### Items (133 total, matching the check count exactly)
 
 - Characters (22) and Blueprints (72) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
 - Level Access (8) - required to make the matching biome selectable; this is what actually gates progress toward the goal
-- Land Expansion (No Effect) (15) - filler, does nothing on its own (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost)
+- Land Expansion (No Effect) (24) - filler, does nothing on its own (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost)
 - Wood / Stone / Wheat / Gold - small filler resource grants
 
 ### Options

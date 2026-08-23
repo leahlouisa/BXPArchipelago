@@ -12,13 +12,12 @@ _game_data = json.loads(
     (resources.files(__package__) / "game_data.json").read_text(encoding="utf-8-sig")
 )
 
-# Number of purchasable base-expansion chunks the randomizer models. This is a guessed
-# round number, not the game's true physical cap (which we don't know exactly) - purchases
-# are unrestricted vanilla (see ConfirmExpansionLocationPatch in the mod), this number just
-# needs to match between Items.py and Locations.py so "Land Expansion #n" locations exist
-# for however many chunks a player could plausibly buy. Safe to tune later once real
-# playtesting shows the actual max is meaningfully different.
-LAND_EXPANSION_COUNT = 15
+# Number of purchasable base-expansion chunks the randomizer models. Confirmed real (not a
+# guess): the game has 25 total land tracts, 1 of which you start with, leaving 24
+# purchasable - see ConfirmExpansionLocationPatch in the mod for how purchases stay
+# unrestricted vanilla. This number just needs to match between Items.py and Locations.py
+# so "Land Expansion #n" locations exist for exactly as many chunks as are purchasable.
+LAND_EXPANSION_COUNT = 24
 LAND_EXPANSION_ITEM_ID = 900400
 
 # Matches the game's real elevator-upgrade cadence: 8 levels, the first free, each of the

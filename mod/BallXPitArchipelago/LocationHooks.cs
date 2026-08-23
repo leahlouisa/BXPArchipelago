@@ -35,8 +35,11 @@ internal static class LocationHooks
     /// <summary>Must match the apworld's Items.py ELEVATOR_UPGRADE_COUNT.</summary>
     internal const int ElevatorUpgradeCount = 7;
 
-    /// <summary>Must match the apworld's Items.py LAND_EXPANSION_COUNT.</summary>
-    internal const int LandExpansionCount = 15;
+    /// <summary>
+    /// Must match the apworld's Items.py LAND_EXPANSION_COUNT. Confirmed real: 25 total
+    /// land tracts, 1 already owned at the start, leaving 24 purchasable.
+    /// </summary>
+    internal const int LandExpansionCount = 24;
 
     /// <summary>Number of real biomes - matches shared/game_data.json's "levels" entries.</summary>
     internal const int LevelCount = 8;
