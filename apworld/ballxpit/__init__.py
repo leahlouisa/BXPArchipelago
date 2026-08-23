@@ -1,5 +1,4 @@
 from BaseClasses import Tutorial
-from Options import PerGameCommonOptions
 from worlds.AutoWorld import WebWorld, World
 
 from .Items import (
@@ -12,6 +11,7 @@ from .Items import (
     level_access_item_names,
 )
 from .Locations import location_table
+from .Options import BallXPitOptions
 from .Regions import create_regions
 from .Rules import set_rules
 
@@ -34,7 +34,7 @@ class BallXPitWorld(World):
     """
     game = "Ball x Pit"
     web = BallXPitWeb()
-    options_dataclass = PerGameCommonOptions
+    options_dataclass = BallXPitOptions
     topology_present = False
 
     item_name_to_id = {name: data.code for name, data in item_table.items()}
@@ -60,4 +60,4 @@ class BallXPitWorld(World):
         set_rules(self)
 
     def fill_slot_data(self) -> dict:
-        return {}
+        return {"death_link": bool(self.options.death_link)}

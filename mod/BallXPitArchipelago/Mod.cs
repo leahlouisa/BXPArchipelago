@@ -37,6 +37,9 @@ public class Mod : MelonMod
         LocationHooks.PollForChanges();
 
         if (ApConnection.Session != null)
+        {
             ItemReceiver.RetryPending(ApConnection.Session.Items);
+            DeathLinkHandler.ProcessPending();
+        }
     }
 }
