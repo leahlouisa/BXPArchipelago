@@ -61,7 +61,10 @@ public static class ApConnection
         log.Msg($"Connected to {config.Host}:{config.Port} as {config.Slot} " +
                 $"(team {success.Team}, slot {success.Slot}).");
 
-        session.Items.ItemReceived += ItemReceiver.OnItemReceived;
+        // No session.Items.ItemReceived subscription: that event fires on the network
+        // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main
+        // thread. Mod.OnUpdate() polls ItemReceiver.RetryPending() on the main thread
+        // instead, so CatchUp here just establishes the state - it'll pick up from here.
         ItemReceiver.CatchUp(session.Items, config.Slot, log);
 
         return null;
@@ -72,7 +75,6 @@ public static class ApConnection
         if (Session == null)
             return;
 
-        Session.Items.ItemReceived -= ItemReceiver.OnItemReceived;
         Session.Socket.DisconnectAsync();
         Session = null;
     }

@@ -32,6 +32,12 @@ namespace BallXPitArchipelago;
 /// mod's memory - so applying *those* once via the same cursor would silently lose them on
 /// every reconnect or process restart (the cursor says "already applied", so they'd never
 /// be re-added to the in-memory state). Recomputed from the full history every time instead.
+///
+/// Deliberately not wired to session.Items.ItemReceived: that event fires on Archipelago's
+/// network thread, and SaveMgr/IL2CPP calls aren't safe off Unity's main thread. Instead
+/// Mod.OnUpdate() polls RetryPending() a couple times a second, so every actual grant
+/// happens on the main thread. The cursor only advances past an item once it's confirmed
+/// applied (see Drain) so a transient failure gets retried instead of silently dropped.
 /// </summary>
 public static class ItemReceiver
 {
@@ -51,11 +57,6 @@ public static class ItemReceiver
         Drain(items);
     }
 
-    public static void OnItemReceived(ReceivedItemsHelper helper)
-    {
-        Drain(helper);
-    }
-
     private static void Drain(IReceivedItemsHelper items)
     {
         if (_log == null || _state == null)
@@ -73,7 +74,11 @@ public static class ItemReceiver
 
         for (var i = _state.AppliedItemCount; i < all.Count; i++)
         {
-            ApplyPersistent(all[i].ItemName);
+            // Stop at the first item that fails to apply rather than skipping past it -
+            // it (and anything after it) gets retried from here on the next Drain() call.
+            if (!ApplyPersistent(all[i].ItemName))
+                break;
+
             _state.AppliedItemCount = i + 1;
         }
 
@@ -113,62 +118,75 @@ public static class ItemReceiver
         LandExpansionCount = landExpansionCount;
     }
 
-    /// <summary>Character/Blueprint/resource grants - applied once and tracked by ApState's cursor.</summary>
-    private static void ApplyPersistent(string itemName)
+    /// <summary>
+    /// Character/Blueprint/resource grants - applied once and tracked by ApState's cursor.
+    /// Returns false only for a transient failure worth retrying (the SaveMgr call itself
+    /// threw); an unresolvable name is logged and treated as "handled" (true) since retrying
+    /// it would never succeed.
+    /// </summary>
+    private static bool ApplyPersistent(string itemName)
     {
-        try
+        if (itemName.StartsWith("Character: "))
         {
-            if (itemName.StartsWith("Character: "))
+            var display = itemName["Character: ".Length..];
+            if (!GameNames.TryParseCharacter(display, out var charType))
             {
-                var display = itemName["Character: ".Length..];
-                if (GameNames.TryParseCharacter(display, out var charType))
-                    ApplyGuarded(() => SaveMgr.I.UnlockChar(charType), $"Unlocked character {charType}");
-                else
-                    _log.Warning($"Unknown character item: {itemName}");
+                _log.Warning($"Unknown character item: {itemName}");
+                return true;
             }
-            else if (itemName.StartsWith("Blueprint: "))
-            {
-                var display = itemName["Blueprint: ".Length..];
-                if (GameNames.TryParseBuilding(display, out var buildingType))
-                    ApplyGuarded(() => SaveMgr.I.GainBlueprint(buildingType), $"Gained blueprint {buildingType}");
-                else
-                    _log.Warning($"Unknown blueprint item: {itemName}");
-            }
-            else if (itemName.StartsWith("Level Access: ") || itemName == "Progressive Land Expansion")
-            {
-                // Handled by RecomputeInMemoryState every Drain() call, not here.
-            }
-            else if (itemName is "Wood" or "Stone" or "Wheat" or "Gold")
-            {
-                var resourceType = itemName switch
-                {
-                    "Wood" => ResourceType.kWood,
-                    "Stone" => ResourceType.kStone,
-                    "Wheat" => ResourceType.kWheat,
-                    "Gold" => ResourceType.kGold,
-                    _ => throw new InvalidOperationException(),
-                };
-                ApplyGuarded(
-                    () => SaveMgr.I.AddResources(resourceType, FillerResourceAmount, false, false),
-                    $"Granted {FillerResourceAmount} {resourceType}");
-            }
-            else
-            {
-                _log.Warning($"Unrecognized item: {itemName}");
-            }
+
+            return TryApplyGuarded(() => SaveMgr.I.UnlockChar(charType), $"Unlocked character {charType}", itemName);
         }
-        catch (Exception e)
+
+        if (itemName.StartsWith("Blueprint: "))
         {
-            _log.Error($"Failed to apply item '{itemName}': {e}");
+            var display = itemName["Blueprint: ".Length..];
+            if (!GameNames.TryParseBuilding(display, out var buildingType))
+            {
+                _log.Warning($"Unknown blueprint item: {itemName}");
+                return true;
+            }
+
+            return TryApplyGuarded(() => SaveMgr.I.GainBlueprint(buildingType), $"Gained blueprint {buildingType}", itemName);
         }
+
+        if (itemName.StartsWith("Level Access: ") || itemName == "Progressive Land Expansion")
+        {
+            // Handled by RecomputeInMemoryState every Drain() call, not here.
+            return true;
+        }
+
+        if (itemName is "Wood" or "Stone" or "Wheat" or "Gold")
+        {
+            var resourceType = itemName switch
+            {
+                "Wood" => ResourceType.kWood,
+                "Stone" => ResourceType.kStone,
+                "Wheat" => ResourceType.kWheat,
+                "Gold" => ResourceType.kGold,
+                _ => throw new InvalidOperationException(),
+            };
+            return TryApplyGuarded(
+                () => SaveMgr.I.AddResources(resourceType, FillerResourceAmount, false, false),
+                $"Granted {FillerResourceAmount} {resourceType}",
+                itemName);
+        }
+
+        _log.Warning($"Unrecognized item: {itemName}");
+        return true;
     }
 
-    private static void ApplyGuarded(Action grant, string logMessage)
+    private static bool TryApplyGuarded(Action grant, string logMessage, string itemName)
     {
         IsApplyingItem = true;
         try
         {
             grant();
+        }
+        catch (Exception e)
+        {
+            _log.Error($"Failed to apply item '{itemName}', will retry: {e}");
+            return false;
         }
         finally
         {
@@ -176,5 +194,6 @@ public static class ItemReceiver
         }
 
         _log.Msg(logMessage);
+        return true;
     }
 }
