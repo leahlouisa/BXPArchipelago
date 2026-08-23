@@ -19,10 +19,13 @@ namespace BallXPitArchipelago;
 ///                                     ConfirmExpansionLocationPatch in LocationHooks.cs)
 ///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant
 ///
-/// Characters and Blueprints are also grantable by vanilla game logic - LocationHooks
-/// suppresses those vanilla grants (converting the vanilla trigger into a location check
-/// instead) so IsApplyingItem is used to tell LocationHooks "this SaveMgr call came from
-/// an AP item being applied, let it through" as opposed to a vanilla trigger to suppress.
+/// Characters and Blueprints are also grantable by vanilla game logic, through the same
+/// SaveMgr methods this applies AP items with - IsApplyingItem tells LocationHooks "this
+/// SaveMgr call came from an AP item being applied, don't treat it as a fresh vanilla
+/// trigger". For Character this also suppresses the vanilla grant entirely (real unlock only
+/// happens via a received AP item); Blueprint no longer suppresses (see
+/// GainBlueprintLocationPatch), but still needs the guard so applying a received "Blueprint:
+/// X" item doesn't loop back around into sending a check for itself.
 ///
 /// The Archipelago server replays a slot's *entire* item history every time we connect
 /// (IReceivedItemsHelper.AllItemsReceived grows to hold the full history, not just new

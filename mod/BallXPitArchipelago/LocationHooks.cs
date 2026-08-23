@@ -5,15 +5,19 @@ using MelonLoader;
 namespace BallXPitArchipelago;
 
 /// <summary>
-/// Converts vanilla progression triggers into Archipelago location checks. Level access is
-/// the only system gated on AP items via ItemReceiver's tracked state (it has no vanilla
-/// "trigger" of its own to convert) - everything else, including land expansion, lets the
-/// real vanilla action happen unconditionally and just reports it as a check afterward.
+/// Converts vanilla progression triggers into Archipelago location checks. Character unlock
+/// and level access are the only systems still gated on AP items (suppressing the vanilla
+/// grant, converting it into a check instead) - everything else, including blueprints, land
+/// expansion, and elevator upgrades, lets the real vanilla action happen unconditionally and
+/// just reports it as a check afterward. Blueprint grants moved into this second group after
+/// suppression was found to break vanilla's own "next undiscovered blueprint" bookkeeping
+/// for a level (see GainBlueprintLocationPatch).
 ///
 /// Location name convention (must match the ballxpit apworld's location table):
 ///   "Character: {display}"    - vanilla SaveMgr.UnlockChar call site (suppressed unless
 ///                                 the call came from ItemReceiver applying an AP item)
-///   "Blueprint: {display}"    - vanilla SaveMgr.GainBlueprint call site (same suppression)
+///   "Blueprint: {display}"    - vanilla SaveMgr.GainBlueprint call site (not suppressed -
+///                                 see GainBlueprintLocationPatch for why)
 ///   "Complete Level: {display}" - LevelData[i].DidComplete flips false -> true
 ///   "Elevator Upgrade #{n}"   - vanilla BaseMgr.RunElevatorUpgrade call site (not
 ///                                 suppressed - the upgrade still happens normally)
@@ -34,10 +38,14 @@ internal static class LocationHooks
     /// <summary>Must match the apworld's Items.py LAND_EXPANSION_COUNT.</summary>
     internal const int LandExpansionCount = 15;
 
+    /// <summary>Number of real biomes - matches shared/game_data.json's "levels" entries.</summary>
+    internal const int LevelCount = 8;
+
     internal static MelonLogger.Instance Log;
 
     private static readonly Dictionary<LevelType, bool> LastLevelComplete = new();
     private static bool _establishedLevelBaseline;
+    private static bool _goalReported;
 
     internal static void SendCheck(string locationName)
     {
@@ -52,6 +60,16 @@ internal static class LocationHooks
         if (id < 0)
         {
             Log?.Warning($"Unknown location '{locationName}' (not in this slot's data package).");
+            return;
+        }
+
+        // A vanilla trigger can legitimately fire more than once for the same location (e.g.
+        // replaying a level can re-offer an already-discovered blueprint) - re-sending an
+        // already-checked location is a harmless no-op server-side, but logging it as if it
+        // were new is misleading when diagnosing "nothing happened" reports.
+        if (session.Locations.AllLocationsChecked.Contains(id))
+        {
+            Log?.Msg($"Location '{locationName}' already checked - vanilla re-trigger, no new check sent.");
             return;
         }
 
@@ -89,6 +107,31 @@ internal static class LocationHooks
 
             LastLevelComplete[lvl.Type] = lvl.DidComplete;
         }
+
+        ReportGoalIfComplete();
+    }
+
+    /// <summary>
+    /// Tells the Archipelago server the player has won once all 8 biomes are genuinely
+    /// beaten in-game (not just access-granted) - the apworld's completion_condition only
+    /// covers what the generator needs to guarantee a solvable seed, it can't detect real
+    /// in-game completion itself. SetGoalAchieved cannot be un-sent, so _goalReported guards
+    /// against calling it more than once per process (same lifetime as _establishedLevelBaseline).
+    /// </summary>
+    private static void ReportGoalIfComplete()
+    {
+        if (_goalReported || LastLevelComplete.Count < LevelCount)
+            return;
+
+        foreach (var complete in LastLevelComplete.Values)
+        {
+            if (!complete)
+                return;
+        }
+
+        _goalReported = true;
+        ApConnection.Session.SetGoalAchieved();
+        Log?.Msg("All levels complete - reported goal achieved to Archipelago.");
     }
 }
 
@@ -106,22 +149,36 @@ internal static class UnlockCharLocationPatch
     }
 }
 
+/// <summary>
+/// Non-suppressing Postfix, not a blocking Prefix like UnlockCharLocationPatch - unlike
+/// character unlocks, a level's blueprint reward is picked from a per-level "undiscovered
+/// blueprints" pool, and vanilla appears to use SaveMgr.HasBlueprint(bt) to decide what's
+/// still eligible to offer. Suppressing the real grant (the original design) left
+/// HasBlueprint permanently false, so vanilla kept re-offering the *same* blueprint every
+/// replay instead of progressing through the pool (confirmed live: replaying a level
+/// re-sent identical "Blueprint: X" checks instead of new ones). Letting the real grant
+/// happen fixes vanilla's own bookkeeping, at the cost of blueprint acquisition itself no
+/// longer being "randomized" - you get exactly what vanilla would give you, in vanilla's
+/// order; only the checks layered on top (and what they give back) are randomized. A
+/// received "Blueprint: X" AP item still calls GainBlueprint directly (see ItemReceiver),
+/// so it still functions as real bonus/early access to a building - IsApplyingItem guards
+/// against that turning back around into sending a check for itself.
+/// </summary>
 [HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.GainBlueprint))]
 internal static class GainBlueprintLocationPatch
 {
-    private static bool Prefix(BuildingType bt)
+    private static void Postfix(BuildingType bt)
     {
         if (ApConnection.Session == null || ItemReceiver.IsApplyingItem)
-            return true;
+            return;
 
         // BuildingType has enum values with no confirmed real building behind them (unused/
         // cut content - see GameNames.cs). Only intercept the ones we've verified are real
-        // and part of the randomizer; anything else behaves as vanilla untouched.
+        // and part of the randomizer; anything else is ignored (vanilla already ran as-is).
         if (!GameNames.BuildingNames.ContainsKey(bt))
-            return true;
+            return;
 
         LocationHooks.SendCheck($"Blueprint: {GameNames.BuildingDisplay(bt)}");
-        return false;
     }
 }
 
