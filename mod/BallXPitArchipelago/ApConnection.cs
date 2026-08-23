@@ -65,7 +65,7 @@ public static class ApConnection
         // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main
         // thread. Mod.OnUpdate() polls ItemReceiver.RetryPending() on the main thread
         // instead, so CatchUp here just establishes the state - it'll pick up from here.
-        ItemReceiver.CatchUp(session.Items, config.Slot, log);
+        ItemReceiver.CatchUp(session.Items, config.Slot, session.RoomState.Seed, log);
 
         return null;
     }

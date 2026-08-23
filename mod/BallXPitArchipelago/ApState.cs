@@ -11,6 +11,7 @@ namespace BallXPitArchipelago;
 public class ApState
 {
     public string Slot { get; set; } = "";
+    public string SeedName { get; set; } = "";
     public int AppliedItemCount { get; set; }
 
     private static string PathFor(string slot)

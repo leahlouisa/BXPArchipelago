@@ -50,10 +50,23 @@ public static class ItemReceiver
     internal static readonly HashSet<LevelType> UnlockedLevels = new();
     internal static int LandExpansionCount { get; private set; }
 
-    public static void CatchUp(IReceivedItemsHelper items, string slot, MelonLogger.Instance log)
+    public static void CatchUp(IReceivedItemsHelper items, string slot, string seedName, MelonLogger.Instance log)
     {
         _log = log;
         _state = ApState.Load(slot);
+
+        // AppliedItemCount is an index into *this seed's* item history - a local sidecar
+        // file keyed only by slot name has no way to know a new seed was generated (e.g.
+        // after an apworld data change), so without this check it would keep treating a
+        // stale index as "already applied", silently skipping every item in the new seed's
+        // history from 0 up to that index. RoomState.Seed uniquely IDs each generation.
+        if (_state.SeedName != seedName)
+        {
+            _log.Msg($"New seed detected (was '{_state.SeedName}', now '{seedName}') - resetting applied-item progress.");
+            _state.SeedName = seedName;
+            _state.AppliedItemCount = 0;
+        }
+
         Drain(items);
     }
 
