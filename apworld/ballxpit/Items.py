@@ -61,11 +61,14 @@ for _b in _game_data["buildings"]:
 for _l in _game_data["levels"]:
     item_table[f"Level Access: {_l['display']}"] = ItemData(_l["id"], ItemClassification.progression)
 
-# Not progression: "Land Expansion #n" locations have no access rule (land expansion
-# purchases are unrestricted vanilla - see ConfirmExpansionLocationPatch in the mod), so
-# this doesn't gate anything. Useful rather than filler since it's still a distinct,
-# thematic reward, same tier as Character/Blueprint items.
-item_table["Progressive Land Expansion"] = ItemData(LAND_EXPANSION_ITEM_ID, ItemClassification.useful)
+# Genuinely has no gameplay effect when received - land expansion purchases are
+# unrestricted vanilla (see ConfirmExpansionLocationPatch in the mod), so there's nothing
+# left for this item to grant. filler (not useful) is the honest AP classification for
+# that, and the name says so explicitly - a plain "Progressive Land Expansion" name looked
+# exactly like every other real reward, which was confusing (a check that visibly "does
+# nothing" reads as broken, not as a deliberate no-op).
+LAND_EXPANSION_ITEM_NAME = "Land Expansion (No Effect)"
+item_table[LAND_EXPANSION_ITEM_NAME] = ItemData(LAND_EXPANSION_ITEM_ID, ItemClassification.filler)
 
 for _name, _code in FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)

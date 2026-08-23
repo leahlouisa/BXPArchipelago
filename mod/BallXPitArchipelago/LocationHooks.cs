@@ -244,8 +244,8 @@ internal static class RunElevatorUpgradeLocationPatch
 
 /// <summary>
 /// Land expansion purchases stay completely vanilla (resources spent, chunk unlocked, no
-/// gating) - originally this blocked the purchase until enough "Progressive Land Expansion"
-/// items had been received, but that meant clicking a chunk you couldn't afford *yet* under
+/// gating) - originally this blocked the purchase until enough of the land-expansion item
+/// had been received, but that meant clicking a chunk you couldn't afford *yet* under
 /// AP looked identical to clicking one you could afford in-game but hadn't been granted -
 /// confusingly silent either way. Postfix instead, same non-blocking pattern as
 /// RunElevatorUpgradeLocationPatch: the real purchase always happens, and afterward sends a

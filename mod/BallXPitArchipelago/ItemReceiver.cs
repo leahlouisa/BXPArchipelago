@@ -14,9 +14,11 @@ namespace BallXPitArchipelago;
 ///   "Blueprint: {display}"        -> SaveMgr.I.GainBlueprint(BuildingType.k{Token})
 ///   "Level Access: {display}"     -> added to UnlockedLevels, read by LocationHooks'
 ///                                     LevelSelectItem.InitLocked gate
-///   "Progressive Land Expansion"  -> purely cosmetic, no gameplay effect (land expansion
+///   "Land Expansion (No Effect)"  -> purely cosmetic, no gameplay effect (land expansion
 ///                                     purchases are unrestricted vanilla - see
-///                                     ConfirmExpansionLocationPatch in LocationHooks.cs)
+///                                     ConfirmExpansionLocationPatch in LocationHooks.cs) -
+///                                     the name says so explicitly so it doesn't read as a
+///                                     broken check when nothing visibly happens
 ///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant
 ///
 /// Characters and Blueprints are also grantable by vanilla game logic, through the same
@@ -165,7 +167,7 @@ public static class ItemReceiver
             return true;
         }
 
-        if (itemName == "Progressive Land Expansion")
+        if (itemName == "Land Expansion (No Effect)")
         {
             // Purely cosmetic - land expansion purchases are unrestricted vanilla, see
             // ConfirmExpansionLocationPatch. Nothing to apply.
