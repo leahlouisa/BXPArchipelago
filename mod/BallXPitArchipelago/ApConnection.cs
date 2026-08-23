@@ -68,6 +68,12 @@ public static class ApConnection
         log.Msg($"Connected to {config.Host}:{config.Port} as {config.Slot} " +
                 $"(team {success.Team}, slot {success.Slot}).");
 
+        // InfoDB may not be ready this early (it wasn't for the equivalent debug dump - see
+        // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyOnce() the same
+        // way ItemReceiver retries pending items, so a no-op here just means it applies a
+        // little later instead of failing.
+        BlueprintShuffle.ApplyOnce(session.RoomState.Seed);
+
         // No session.Items.ItemReceived subscription: that event fires on the network
         // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main
         // thread. Mod.OnUpdate() polls ItemReceiver.RetryPending() on the main thread

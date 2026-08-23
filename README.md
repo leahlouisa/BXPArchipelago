@@ -16,7 +16,7 @@ Complete all 8 biome levels.
 ### Checks (~133 total)
 
 - Unlocking a character (22)
-- Unlocking a building blueprint, including each biome's first-completion "Trophy" (72)
+- Unlocking a building blueprint, including each biome's first-completion "Trophy" (72) - which specific building each biome offers next is also shuffled per-seed, so blueprint discovery order varies between multiworlds instead of always following the same fixed vanilla sequence
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
 - Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (24 - the game has 25 total land tracts, 1 of which you start with)
@@ -38,6 +38,8 @@ Complete all 8 biome levels.
 
 Important: this expects your own legitimate copy of Ball X Pit on Steam.
 
+### Windows
+
 - Make sure you have [.NET 6.0](https://dotnet.microsoft.com/en-us/download/dotnet/6.0) installed.
 - Download and install [MelonLoader](https://melonloader.co) into your Ball X Pit install (this mod is built and tested against v0.7.3).
 - Launch the game once, then close it - this lets MelonLoader finish generating its interop files.
@@ -46,6 +48,27 @@ Important: this expects your own legitimate copy of Ball X Pit on Steam.
     - `Archipelago.MultiClient.Net.dll` and `Newtonsoft.Json.dll` go in your game's `UserLibs` folder.
 - Launch the game again - a connect box will appear on screen. Enter your Archipelago server's host/port, your slot name, and password (if any), then connect.
 - To uninstall, delete `BallXPitArchipelago.dll` from `Mods` (and the two dependency DLLs from `UserLibs`, if nothing else in your mod setup needs them).
+
+### SteamOS / Steam Deck (via Proton)
+
+MelonLoader officially supports Wine/Steam Proton, and this mod has no Windows-specific code of its own - it's ordinary .NET/Harmony code, so it runs the same way under Proton as it does natively. A few extra one-time setup steps are needed first though:
+
+1. Switch to Desktop Mode and open a terminal.
+2. Install Protontricks via Flatpak (SteamOS's root filesystem is read-only, so this can't go through a normal package manager like `pacman`/AUR):
+   ```
+   flatpak install flathub com.github.Matoking.protontricks
+   ```
+   Every `protontricks` command below needs the `flatpak run com.github.Matoking.protontricks` prefix in place of bare `protontricks`.
+3. Find Ball X Pit's AppID: `flatpak run com.github.Matoking.protontricks -s "BALL x PIT"`.
+4. Install the .NET 6.0 Desktop Runtime into the game's Proton prefix: `flatpak run com.github.Matoking.protontricks [appid] dotnetdesktop6`.
+5. In Steam, right-click Ball X Pit -> Properties -> General -> Launch Options, and set:
+   ```
+   WINEDLLOVERRIDES="version=n,b" %command%
+   ```
+6. Install MelonLoader manually rather than via its Windows installer: download the MelonLoader release zip, then right-click Ball X Pit -> Manage -> Browse local files to open the install folder directly, and extract the zip's contents (the `MelonLoader/` folder and `version.dll`) straight into it.
+7. Launch the game once to let MelonLoader finish its setup, then follow the same steps as the Windows instructions above (download `BallXPitArchipelago.zip`, place the DLLs in `Mods`/`UserLibs`).
+
+If MelonLoader doesn't seem to load (no `MelonLoader/Latest.log` appears in the game folder), double-check the launch option is exact and that step 4 actually completed - those are the two most common points of failure.
 
 If you're generating/hosting the multiworld rather than just playing in one, you'll also need `ballxpit.apworld` from the same release - drop it in Archipelago's `custom_worlds` folder before generating.
 
@@ -68,4 +91,4 @@ To package the apworld yourself instead of using a release build: zip the conten
 
 ## Project status
 
-MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized, DeathLink is supported, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.
+MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized, blueprint discovery order is shuffled per-seed, DeathLink is supported, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.

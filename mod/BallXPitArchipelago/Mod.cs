@@ -40,6 +40,7 @@ public class Mod : MelonMod
         {
             ItemReceiver.RetryPending(ApConnection.Session.Items);
             DeathLinkHandler.ProcessPending();
+            BlueprintShuffle.ApplyOnce(ApConnection.Session.RoomState.Seed);
         }
     }
 }
