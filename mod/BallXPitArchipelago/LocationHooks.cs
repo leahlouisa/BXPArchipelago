@@ -153,35 +153,47 @@ internal static class UnlockCharLocationPatch
 }
 
 /// <summary>
-/// Non-suppressing Postfix, not a blocking Prefix like UnlockCharLocationPatch - unlike
-/// character unlocks, a level's blueprint reward is picked from a per-level "undiscovered
-/// blueprints" pool, and vanilla appears to use SaveMgr.HasBlueprint(bt) to decide what's
-/// still eligible to offer. Suppressing the real grant (the original design) left
-/// HasBlueprint permanently false, so vanilla kept re-offering the *same* blueprint every
-/// replay instead of progressing through the pool (confirmed live: replaying a level
-/// re-sent identical "Blueprint: X" checks instead of new ones). Letting the real grant
-/// happen fixes vanilla's own bookkeeping, at the cost of blueprint acquisition itself no
-/// longer being "randomized" - you get exactly what vanilla would give you, in vanilla's
-/// order; only the checks layered on top (and what they give back) are randomized. A
-/// received "Blueprint: X" AP item still calls GainBlueprint directly (see ItemReceiver),
-/// so it still functions as real bonus/early access to a building - IsApplyingItem guards
-/// against that turning back around into sending a check for itself.
+/// Whether suppressing this building's grant is safe. A level's "undiscovered blueprints"
+/// pool is walked sequentially by SaveMgr.HasBlueprint(bt) - suppressing unconditionally
+/// (the original design) left HasBlueprint permanently false, so vanilla kept re-offering
+/// the *same* blueprint forever instead of progressing (confirmed live). Two categories are
+/// safe to suppress despite that: the 8 Trophy (kXIdol) buildings, since level-completion
+/// trophies are one-time events with no pool to get stuck on; and BlueprintShuffle's ~48
+/// pool-eligible buildings, now that Rules.py encodes the real per-level dependency chain
+/// (position N needs position N-1's item) so the generator never places something
+/// unreachable behind it. Everything else (CharHousing-only buildings, buildings not yet
+/// tracked by BlueprintPools.py) has no such chain, so it stays non-suppressing - real grant
+/// plus a check layered on top, same as the interim design.
 /// </summary>
+internal static class SuppressibleBuildingTypes
+{
+    private static readonly System.Collections.Generic.HashSet<BuildingType> Trophies = new()
+    {
+        BuildingType.kGraveyardIdol, BuildingType.kBattlefieldIdol, BuildingType.kSavannaIdol,
+        BuildingType.kHellIdol, BuildingType.kHeavenIdol, BuildingType.kShroomIdol,
+        BuildingType.kDesertIdol, BuildingType.kMoonIdol,
+    };
+
+    internal static bool Contains(BuildingType bt) => Trophies.Contains(bt) || BlueprintShuffle.PoolEligibleBuildings.Contains(bt);
+}
+
 [HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.GainBlueprint))]
 internal static class GainBlueprintLocationPatch
 {
-    private static void Postfix(BuildingType bt)
+    private static bool Prefix(BuildingType bt)
     {
         if (ApConnection.Session == null || ItemReceiver.IsApplyingItem)
-            return;
+            return true;
 
         // BuildingType has enum values with no confirmed real building behind them (unused/
         // cut content - see GameNames.cs). Only intercept the ones we've verified are real
-        // and part of the randomizer; anything else is ignored (vanilla already ran as-is).
+        // and part of the randomizer; anything else is ignored (vanilla already runs as-is).
         if (!GameNames.BuildingNames.ContainsKey(bt))
-            return;
+            return true;
 
         LocationHooks.SendCheck($"Blueprint: {GameNames.BuildingDisplay(bt)}");
+
+        return !SuppressibleBuildingTypes.Contains(bt);
     }
 }
 

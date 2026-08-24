@@ -61,4 +61,11 @@ class BallXPitWorld(World):
         set_rules(self)
 
     def fill_slot_data(self) -> dict:
-        return {"death_link": bool(self.options.death_link)}
+        return {
+            "death_link": bool(self.options.death_link),
+            # Computed once in set_rules() (BlueprintPools.py / Rules.py) - the mod applies
+            # this exact per-level order rather than computing its own, so the access rules
+            # set during generation and what the mod actually does at runtime can never
+            # diverge. {level_enum: [building_enum, ...]}.
+            "blueprint_order": self.blueprint_order,
+        }

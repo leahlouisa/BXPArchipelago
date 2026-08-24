@@ -13,17 +13,17 @@ An [Archipelago](https://archipelago.gg) randomizer integration for [Ball X Pit]
 
 Complete all 8 biome levels.
 
-### Checks (~133 total)
+### Checks (~130 total)
 
 - Unlocking a character (22)
-- Unlocking a building blueprint, including each biome's first-completion "Trophy" (72) - which specific building each biome offers next is also shuffled per-seed, so blueprint discovery order varies between multiworlds instead of always following the same fixed vanilla sequence
+- Unlocking a building blueprint, including each biome's first-completion "Trophy" (69) - for most of these (the ones each biome offers as you play), the vanilla building itself is fully replaced by a random check reward, and which building a biome offers next is shuffled per-seed too, so blueprint discovery order varies between multiworlds instead of always following the same fixed vanilla sequence. A handful of other buildings (tied to specific characters, or not yet catalogued by this project) still work the older way - you get the real vanilla building *and* a bonus check reward from the same trigger.
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
 - Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (24 - the game has 25 total land tracts, 1 of which you start with)
 
-### Items (133 total, matching the check count exactly)
+### Items (130 total, matching the check count exactly)
 
-- Characters (22) and Blueprints (72) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
+- Characters (22) and Blueprints (69) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
 - Level Access (8) - required to make the matching biome selectable; this is what actually gates progress toward the goal
 - Land Expansion (No Effect) (24) - filler, does nothing on its own (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost)
 - Wood / Stone / Wheat / Gold - small filler resource grants

@@ -5,6 +5,10 @@ from typing import Dict
 
 from BaseClasses import Item, ItemClassification
 
+from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL
+
+_POOLED_BUILDING_ENUMS = {b for pool in BLUEPRINT_POOLS_BY_LEVEL.values() for b in pool}
+
 # .apworld files are loaded directly as zip archives via zipimport, so game_data.json
 # isn't a real filesystem path - os.path.dirname(__file__) + open() doesn't work here.
 # importlib.resources is zip-safe.
@@ -46,15 +50,28 @@ class ItemData:
 
 item_table: Dict[str, ItemData] = {}
 
-# Characters/Blueprints aren't required by any access rule in this world (nothing about
-# reaching a location or the goal depends on having a specific character or building - the
-# game's own resource/skill requirements aren't modeled), so they're "useful" rather than
+# Characters aren't required by any access rule in this world (nothing about reaching a
+# location or the goal depends on having a specific character - the game's own
+# resource/skill requirements aren't modeled), so they're "useful" rather than
 # "progression": nice to receive, not logically load-bearing.
 for _c in _game_data["characters"]:
     item_table[f"Character: {_c['display']}"] = ItemData(_c["id"], ItemClassification.useful)
 
+# Blueprints in BLUEPRINT_POOLS_BY_LEVEL are progression, not useful: Rules.py chains each
+# level's pool into a dependency ladder (position N requires position N-1's item, since the
+# mod suppresses the vanilla grant and only the matching AP item flips it), and AP's fill
+# algorithm only guarantees progression items are placed early enough to satisfy logic that
+# depends on them - useful items are placed in a later, unconstrained pass that doesn't
+# respect access rules. Getting this wrong causes real generation failures (confirmed: it
+# did, before this fix). Everything else (Trophies, CharHousing-only buildings, buildings
+# not in any pool) has no chain depending on it, so those stay useful.
 for _b in _game_data["buildings"]:
-    item_table[f"Blueprint: {_b['display']}"] = ItemData(_b["id"], ItemClassification.useful)
+    _classification = (
+        ItemClassification.progression
+        if _b["enum"] in _POOLED_BUILDING_ENUMS
+        else ItemClassification.useful
+    )
+    item_table[f"Blueprint: {_b['display']}"] = ItemData(_b["id"], _classification)
 
 # Level Access items ARE required (they gate the "Complete Level" locations and the goal).
 for _l in _game_data["levels"]:
@@ -75,6 +92,11 @@ for _name, _code in FILLER_ITEM_IDS.items():
 character_item_names = [f"Character: {c['display']}" for c in _game_data["characters"]]
 blueprint_item_names = [f"Blueprint: {b['display']}" for b in _game_data["buildings"]]
 level_access_item_names = [f"Level Access: {l['display']}" for l in _game_data["levels"]]
+
+# BuildingType enum token -> display name, needed to translate BlueprintPools.py's enum
+# tokens (ground truth captured from the mod's own debug logging) into real item/location
+# names.
+building_enum_to_display = {b["enum"]: b["display"] for b in _game_data["buildings"]}
 
 # Padding to keep the item pool exactly matching the location count (see __init__.py) -
 # the "Elevator Upgrade #n" locations don't have a matching item category of their own

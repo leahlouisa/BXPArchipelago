@@ -17,6 +17,7 @@ public static class ApConnection
 
     public static ArchipelagoSession Session { get; private set; }
     public static string SlotName { get; private set; }
+    public static Dictionary<string, object> SlotData { get; private set; }
     public static DeathLinkService DeathLinkService { get; private set; }
     public static bool DeathLinkEnabled { get; private set; }
 
@@ -65,14 +66,16 @@ public static class ApConnection
         Session = session;
         SlotName = config.Slot;
         var success = (LoginSuccessful)result;
+        SlotData = success.SlotData;
         log.Msg($"Connected to {config.Host}:{config.Port} as {config.Slot} " +
                 $"(team {success.Team}, slot {success.Slot}).");
 
         // InfoDB may not be ready this early (it wasn't for the equivalent debug dump - see
-        // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyOnce() the same
-        // way ItemReceiver retries pending items, so a no-op here just means it applies a
-        // little later instead of failing.
-        BlueprintShuffle.ApplyOnce(session.RoomState.Seed);
+        // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyFromSlotData()
+        // the same way ItemReceiver retries pending items, so a no-op here just means it
+        // applies a little later instead of failing.
+        BlueprintShuffle.ApplyFromSlotData(success.SlotData);
+        BlueprintShuffle.ApplyCharHousingOnce(session.RoomState.Seed);
 
         // No session.Items.ItemReceived subscription: that event fires on the network
         // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main
@@ -122,6 +125,7 @@ public static class ApConnection
         DeathLinkService = null;
         DeathLinkEnabled = false;
         SlotName = null;
+        SlotData = null;
 
         Session.Socket.DisconnectAsync();
         Session = null;
