@@ -13,17 +13,21 @@ An [Archipelago](https://archipelago.gg) randomizer integration for [Ball X Pit]
 
 Complete all 8 biome levels.
 
-### Checks (~130 total)
+### Checks (141 total)
 
 - Unlocking a character (22)
-- Unlocking a building blueprint, including each biome's first-completion "Trophy" (69) - for most of these (the ones each biome offers as you play), the vanilla building itself is fully replaced by a random check reward, and which building a biome offers next is shuffled per-seed too, so blueprint discovery order varies between multiworlds instead of always following the same fixed vanilla sequence. A handful of other buildings (tied to specific characters, or not yet catalogued by this project) still work the older way - you get the real vanilla building *and* a bonus check reward from the same trigger.
+- Unlocking a building blueprint (80), in three flavors:
+  - **62 buildings** are drawn from every level's real boss-drop pool and pooled together across all 8 biomes, then re-partitioned per seed with a randomized count per level - one seed might offer 3 blueprints in the Boneyard and 12 in the Savanna, the next something entirely different. The vanilla building itself is fully replaced by a random check reward; discovery order and how many a biome offers are both shuffled per-seed.
+  - **7 per-level first-completion "Trophies"** work the same way - suppressed and replaced by a random check reward the first time you beat that biome.
+  - **A handful of other buildings** (tied to specific characters via housing) still work the older way - you get the real vanilla building *and* a bonus check reward from the same trigger.
+  - One specific building, the **Void Trophy**, is deliberately excluded from all of the above and never appears as a reward in any seed - it's permanently repurposed as internal plumbing that keeps the blueprint-discovery chain correct (see the "For developers" section if you're curious why).
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
 - Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (24 - the game has 25 total land tracts, 1 of which you start with)
 
-### Items (130 total, matching the check count exactly)
+### Items (141 total, matching the check count exactly)
 
-- Characters (22) and Blueprints (69) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
+- Characters (22) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
 - Level Access (8) - required to make the matching biome selectable; this is what actually gates progress toward the goal
 - Land Expansion (No Effect) (24) - filler, does nothing on its own (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost)
 - Wood / Stone / Wheat / Gold - small filler resource grants
@@ -91,4 +95,4 @@ To package the apworld yourself instead of using a release build: zip the conten
 
 ## Project status
 
-MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized, blueprint discovery order is shuffled per-seed, DeathLink is supported, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.
+MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized, blueprint discovery order (and how many blueprints each biome offers) is shuffled per-seed, DeathLink is supported, received items pop an on-screen notification, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.

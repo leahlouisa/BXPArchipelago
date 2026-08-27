@@ -164,6 +164,7 @@ public static class ItemReceiver
         if (itemName.StartsWith("Level Access: "))
         {
             // Handled by RecomputeInMemoryState every Drain() call, not here.
+            ApGui.ShowToast($"Received: {itemName}");
             return true;
         }
 
@@ -171,6 +172,7 @@ public static class ItemReceiver
         {
             // Purely cosmetic - land expansion purchases are unrestricted vanilla, see
             // ConfirmExpansionLocationPatch. Nothing to apply.
+            ApGui.ShowToast($"Received: {itemName}");
             return true;
         }
 
@@ -212,6 +214,7 @@ public static class ItemReceiver
         }
 
         _log.Msg(logMessage);
+        ApGui.ShowToast($"Received: {itemName}");
         return true;
     }
 }

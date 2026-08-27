@@ -71,6 +71,10 @@
       <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.IMGUIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule">
+      <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <!-- SaveMgr's MonoBehaviour base chain touches Odin Inspector's serialization types. -->
     <Reference Include="Il2CppSirenix.Serialization">
       <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Il2CppSirenix.Serialization.dll</HintPath>

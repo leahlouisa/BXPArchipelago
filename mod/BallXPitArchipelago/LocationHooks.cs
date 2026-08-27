@@ -1,5 +1,6 @@
 using HarmonyLib;
 using Il2Cpp;
+using Il2CppI2.Loc;
 using MelonLoader;
 
 namespace BallXPitArchipelago;
@@ -157,13 +158,15 @@ internal static class UnlockCharLocationPatch
 /// pool is walked sequentially by SaveMgr.HasBlueprint(bt) - suppressing unconditionally
 /// (the original design) left HasBlueprint permanently false, so vanilla kept re-offering
 /// the *same* blueprint forever instead of progressing (confirmed live). Two categories are
-/// safe to suppress despite that: the 8 Trophy (kXIdol) buildings, since level-completion
-/// trophies are one-time events with no pool to get stuck on; and BlueprintShuffle's ~48
-/// pool-eligible buildings, now that Rules.py encodes the real per-level dependency chain
-/// (position N needs position N-1's item) so the generator never places something
-/// unreachable behind it. Everything else (CharHousing-only buildings, buildings not yet
-/// tracked by BlueprintPools.py) has no such chain, so it stays non-suppressing - real grant
-/// plus a check layered on top, same as the interim design.
+/// safe to suppress despite that: the 7 remaining Trophy (kXIdol) buildings, since
+/// level-completion trophies are one-time events with no pool to get stuck on; and
+/// BlueprintShuffle's ~62 pool-eligible buildings, now that Rules.py encodes the real
+/// per-level dependency chain (position N needs position N-1's item) so the generator
+/// never places something unreachable behind it. kMoonIdol (Void Trophy) is handled
+/// separately in GainBlueprintLocationPatch, not here - see BlueprintShuffle.cs. Everything
+/// else (CharHousing-only buildings, buildings not in any pool) has no such chain, so it
+/// stays non-suppressing - real grant plus a check layered on top, same as the interim
+/// design.
 /// </summary>
 internal static class SuppressibleBuildingTypes
 {
@@ -171,7 +174,7 @@ internal static class SuppressibleBuildingTypes
     {
         BuildingType.kGraveyardIdol, BuildingType.kBattlefieldIdol, BuildingType.kSavannaIdol,
         BuildingType.kHellIdol, BuildingType.kHeavenIdol, BuildingType.kShroomIdol,
-        BuildingType.kDesertIdol, BuildingType.kMoonIdol,
+        BuildingType.kDesertIdol,
     };
 
     internal static bool Contains(BuildingType bt) => Trophies.Contains(bt) || BlueprintShuffle.PoolEligibleBuildings.Contains(bt);
@@ -182,6 +185,25 @@ internal static class GainBlueprintLocationPatch
 {
     private static bool Prefix(BuildingType bt)
     {
+        // Void Trophy is deliberately excluded from the randomizer entirely and permanently
+        // repurposed as BlueprintShuffle's placeholder sentinel for the per-level discovery
+        // chain (see BlueprintShuffle.cs) - its ownership flag must never be set by
+        // anything else, including its own original level-completion trigger, EVER, even
+        // while not connected to an AP session. Unlike every other suppression in this mod
+        // (which only applies while connected, since there's no session to send a check to
+        // otherwise), this one has to be checked before the connection gate: a single real
+        // grant here - e.g. completing Vast Void for the first time during an offline play
+        // session with the mod merely installed - would permanently flip HasBlueprint(kMoonIdol)
+        // to true, and since vanilla skips anything already-owned, every level's discovery
+        // chain would desync at once, forever, the next time AP is actually used. No check
+        // is sent for it either way; it isn't a real location any more.
+        if (bt == BuildingType.kMoonIdol)
+        {
+            if (ApConnection.Session != null)
+                BlueprintShuffle.HandleVoidTrophyGrant();
+            return false;
+        }
+
         if (ApConnection.Session == null || ItemReceiver.IsApplyingItem)
             return true;
 
@@ -193,7 +215,18 @@ internal static class GainBlueprintLocationPatch
 
         LocationHooks.SendCheck($"Blueprint: {GameNames.BuildingDisplay(bt)}");
 
-        return !SuppressibleBuildingTypes.Contains(bt);
+        var suppress = SuppressibleBuildingTypes.Contains(bt);
+
+        // This building came from something other than the Void Trophy chain (that's the
+        // only path that reaches GainBlueprintLocationPatch with bt == kMoonIdol) - if it's
+        // one of BlueprintShuffle's managed positions, tell it so the chain doesn't later
+        // waste a pickup re-discovering something already resolved this way. See
+        // BlueprintShuffle.HandleSideChannelGrant for why this exists generically rather
+        // than chasing each individual side channel.
+        if (suppress)
+            BlueprintShuffle.HandleSideChannelGrant(bt);
+
+        return !suppress;
     }
 }
 
@@ -224,6 +257,28 @@ internal static class LevelSelectItemInitLockedPatch
 
         __instance.Init(inf, ngPlus);
         return false;
+    }
+}
+
+/// <summary>
+/// Overrides vanilla's "Undiscovered Blueprints" count on the level-select screen with our
+/// own ground truth (BlueprintShuffle's per-level pending-chain length) - see
+/// BlueprintShuffle.GetRemainingCount for why vanilla's own counter can't be trusted once
+/// items are flowing in from the wider multiworld instead of only from playing that level.
+/// </summary>
+[HarmonyPatch(typeof(LevelSelectItem), nameof(LevelSelectItem.Init))]
+internal static class LevelSelectItemBlueprintCountPatch
+{
+    private static void Postfix(LevelSelectItem __instance, LevelInfo inf, int ngPlus)
+    {
+        if (ApConnection.Session == null || inf == null || ngPlus != 0)
+            return;
+
+        var remaining = BlueprintShuffle.GetRemainingCount(inf.Type);
+        if (remaining == null)
+            return;
+
+        __instance.ParamsBlueprintsLeft?.SetParameterValue("num", remaining.Value.ToString());
     }
 }
 

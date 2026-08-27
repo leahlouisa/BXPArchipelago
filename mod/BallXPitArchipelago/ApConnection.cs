@@ -74,7 +74,7 @@ public static class ApConnection
         // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyFromSlotData()
         // the same way ItemReceiver retries pending items, so a no-op here just means it
         // applies a little later instead of failing.
-        BlueprintShuffle.ApplyFromSlotData(success.SlotData);
+        BlueprintShuffle.ApplyFromSlotData(success.SlotData, config.Slot, session.RoomState.Seed);
         BlueprintShuffle.ApplyCharHousingOnce(session.RoomState.Seed);
 
         // No session.Items.ItemReceived subscription: that event fires on the network
@@ -82,6 +82,8 @@ public static class ApConnection
         // thread. Mod.OnUpdate() polls ItemReceiver.RetryPending() on the main thread
         // instead, so CatchUp here just establishes the state - it'll pick up from here.
         ItemReceiver.CatchUp(session.Items, config.Slot, session.RoomState.Seed, log);
+
+        session.MessageLog.OnMessageReceived += ItemSendNotifier.OnMessageReceived;
 
         // DeathLinkService.OnDeathLinkReceived has the exact same network-thread hazard as
         // session.Items.ItemReceived (both are driven by the same socket.PacketReceived
@@ -121,6 +123,8 @@ public static class ApConnection
 
         if (DeathLinkEnabled)
             DeathLinkService.OnDeathLinkReceived -= DeathLinkHandler.OnReceived;
+
+        Session.MessageLog.OnMessageReceived -= ItemSendNotifier.OnMessageReceived;
 
         DeathLinkService = null;
         DeathLinkEnabled = false;

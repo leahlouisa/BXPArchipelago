@@ -1,57 +1,57 @@
 # Ground truth for InfoDB.I.BlueprintsByLevel, captured live via temporary debug logging
-# (see project memory) - the real, per-level, ORDER-SENSITIVE pool of buildings vanilla
-# reveals as you play each biome. Confirmed live that list *position* (not the
-# BuildingInfo.UnlockOrder field, which is unrelated) is what determines reveal order,
-# walked sequentially, skipping already-owned entries.
+# (see project memory) - the real, per-level pool of buildings vanilla's boss-drop logic
+# offers as you play each biome. Confirmed live twice now that the wiki cannot be trusted
+# for per-level placement (it disagreed with a live dump on Unstable Tower, Spa, Road
+# Keeper, Gatherer's Hut, and the six stat buildings) - only a direct dump of
+# InfoDB.I.BlueprintsByLevel is authoritative here.
 #
-# Only the buildings already confirmed in game_data.json are listed here - the real
-# per-level pools also contain ~14 additional BuildingType values (mostly concentrated in
-# Desert, which is almost entirely uncovered by this list) that show up in this same
-# structured game data but were missed by the wiki cross-reference that built
-# game_data.json, similar to how the Trophy buildings were originally missed. Worth a
-# future follow-up using BuildingInfo.IsInGame as ground truth, but out of scope here -
-# those ~14 aren't part of the apworld's item/location pool, so the mod lets them pass
-# through as untouched vanilla regardless of what this file does.
-#
-# Order matters: this is each level's ORIGINAL vanilla reveal order, not shuffled. The
-# apworld pools these across all 8 levels and redistributes them (see Rules.py), preserving
-# each level's *count* of confirmed entries (the numbers in parentheses below).
+# All 62 buildings vanilla actually offers across the 8 levels are listed below - full
+# coverage, confirmed live. The apworld no longer preserves each level's original count or
+# order (see Rules.py's _set_blueprint_pool_rules): the pool below is just the flat set of
+# real, obtainable buildings, pooled together and re-partitioned across levels at
+# generation time with a randomized size per level. What building ends up where, and how
+# many positions each level gets, is entirely up to that per-seed shuffle.
 BLUEPRINT_POOLS_BY_LEVEL = {
-    "kGraveyard": [  # (9)
+    "kGraveyard": [
         "kSheriffOffice", "kGunsmith", "kHauntedHouse", "kClinic", "kBarracks",
         "kShoemaker", "kSchoolhouse", "kConsulate", "kExorcist",
     ],
-    "kSnowy": [  # (6 of 9 - kIdleFarm/kIdleLumberyard/kIdleStoneMine not yet tracked)
-        "kVeteranHut", "kAlchemist", "kAdventurersGuild", "kWheelwright", "kUniversity",
-        "kWatchTower",
+    "kSnowy": [
+        "kVeteranHut", "kIdleFarm", "kAlchemist", "kAdventurersGuild", "kWheelwright",
+        "kIdleLumberyard", "kUniversity", "kIdleStoneMine", "kWatchTower",
     ],
-    "kSavanna": [  # (8 of 9 - kMasseuse not yet tracked)
+    "kSavanna": [
         "kMilitaryAcademy", "kGoldMine", "kDiplomacyHall", "kGuildHall", "kArcheryRange",
-        "kMarket", "kMagnetFactory", "kBank",
+        "kMarket", "kMasseuse", "kMagnetFactory", "kBank",
     ],
-    "kHell": [  # (6 of 7 - kCobbler not yet tracked)
-        "kMatchMaker", "kJeweler", "kAbbey", "kCasino", "kMansion", "kNecromancer",
+    "kHell": [
+        "kMatchMaker", "kJeweler", "kCobbler", "kAbbey", "kCasino", "kMansion",
+        "kNecromancer",
     ],
-    "kClouds": [  # (5 of 6 - kIdleLauncher not yet tracked)
-        "kDenseWheat", "kGamblersDen", "kGrandTree", "kAntiqueShop", "kGemsmith",
+    "kClouds": [
+        "kDenseWheat", "kIdleLauncher", "kGamblersDen", "kGrandTree", "kAntiqueShop",
+        "kGemsmith",
     ],
-    "kMoon": [  # (7 of 7 - fully tracked)
+    "kMoon": [
         "kStoneDomain", "kGraniteSlab", "kCandleMaker", "kHiddenTemple", "kWishingWell",
         "kWarRoom", "kMeditationTent",
     ],
-    "kShroom": [  # (6 of 7 - kIdleManagement not yet tracked)
+    "kShroom": [
         "kUnstableTower", "kCarpenter", "kBagMaker", "kEvolutionChamber", "kFalconryHut",
-        "kRelicCollector",
+        "kRelicCollector", "kIdleManagement",
     ],
-    "kDesert": [  # (1 of 8 - kStrengthStatue/kEnduranceStatue/kLogCabin/kDexterityStatue/
-                  #  kIntelligenceStatue/kSpeedStatue/kLeadershipStatue not yet tracked)
-        "kPartyHouse",
+    "kDesert": [
+        "kPartyHouse", "kStrengthStatue", "kEnduranceStatue", "kLogCabin",
+        "kDexterityStatue", "kIntelligenceStatue", "kSpeedStatue", "kLeadershipStatue",
     ],
 }
 
-# The 8 level-completion Trophy buildings - one-time events (not a sequential pool to walk),
-# so they're safe to suppress with no dependency chain needed at all.
+# The 7 level-completion Trophy buildings that stay part of the randomizer - one-time
+# events (not a sequential pool to walk), so they're safe to suppress with no dependency
+# chain needed at all. kMoonIdol (Void Trophy) is deliberately NOT here - it's permanently
+# suppressed and repurposed as BlueprintShuffle's placeholder sentinel instead of being a
+# real check/item (see BlueprintShuffle.cs and LocationHooks.cs).
 TROPHY_BUILDINGS = [
     "kGraveyardIdol", "kBattlefieldIdol", "kSavannaIdol", "kHellIdol", "kHeavenIdol",
-    "kShroomIdol", "kDesertIdol", "kMoonIdol",
+    "kShroomIdol", "kDesertIdol",
 ]

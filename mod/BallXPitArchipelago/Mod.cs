@@ -2,7 +2,7 @@ using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.1.0", "leahlouisa")]
+[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.1.1", "leahlouisa")]
 [assembly: MelonGame("Kenny Sun", "BALL x PIT")]
 
 namespace BallXPitArchipelago;
@@ -40,8 +40,10 @@ public class Mod : MelonMod
         {
             ItemReceiver.RetryPending(ApConnection.Session.Items);
             DeathLinkHandler.ProcessPending();
-            BlueprintShuffle.ApplyFromSlotData(ApConnection.SlotData);
+            ItemSendNotifier.ProcessPending();
+            BlueprintShuffle.ApplyFromSlotData(ApConnection.SlotData, ApConnection.SlotName, ApConnection.Session.RoomState.Seed);
             BlueprintShuffle.ApplyCharHousingOnce(ApConnection.Session.RoomState.Seed);
+            BlueprintShuffle.ProcessPendingRefreshes();
         }
     }
 }

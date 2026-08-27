@@ -1,5 +1,5 @@
 {
-  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked against https://ballxpit.wiki.gg/wiki/Buildings and per-level wiki pages. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces), computed as 900100 + the entry's ordinal position in the real BuildingType enum - so a later-added entry's id is fixed by its enum position, not by append order. Buildings not confirmed against the wiki (likely unused/cut BuildingType enum values - granting them does nothing visible in-game, confirmed live) were dropped rather than guessed at. The 8 kXIdol entries (display name '... Trophy') are the per-level first-completion reward buildings - confirmed real and live (granted automatically on first level completion) but initially missed because they aren't on the general Buildings wiki page, only inferable from the per-Level pages; added after being reported as still-vanilla behavior post-launch. kWheatField/kForest/kBoulder were removed (not just 'unconfirmed' - confirmed real, but granted automatically as starter content the instant a new save is created, not through any real player action, so a 'Blueprint: X' check firing for them was disconnected from actual play - reported live and removed). Do not renumber surviving entries if this file is regenerated again - only append or drop.",
+  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked live against the game's own InfoDB.I.Buildings/BlueprintsByLevel data (see project memory) rather than the wiki, which has repeatedly disagreed with confirmed live data (wrong per-level placements for several buildings) and should not be trusted over a live dump. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces), computed as 900100 + the entry's ordinal position in the real BuildingType enum - so a later-added entry's id is fixed by its enum position, not by append order. Buildings confirmed to have BuildingInfo.IsInGame == false (real cut/unused content - granting them does nothing visible, and vanilla's own blueprint-drop logic silently skips them entirely, confirmed live) were dropped rather than guessed at. The 7 remaining kXIdol entries (display name '... Trophy') are the per-level first-completion reward buildings - confirmed real and live (granted automatically on first level completion). kMoonIdol (Void Trophy) is deliberately excluded and permanently suppressed by the mod regardless of AP connection state - it's repurposed as BlueprintShuffle's dedicated placeholder sentinel for the per-level discovery-chain mechanism (see BlueprintShuffle.cs), so its ownership flag must never be set by anything else; the building itself no longer exists as obtainable content in any seed. kWheatField/kForest/kBoulder were removed (not just 'unconfirmed' - confirmed real, but granted automatically as starter content the instant a new save is created, not through any real player action, so a 'Blueprint: X' check firing for them was disconnected from actual play - reported live and removed). kFarm/kLumberyard/kStoneMine/kGatherersHut were removed after discovering they're dead IsInGame==false enum values superseded by kIdleFarm/kIdleLumberyard/kIdleStoneMine/kIdleLauncher (same display names, the real currently-functioning buildings) - the old entries were permanently unreachable locations. 16 additional real buildings (kMasseuse, kIdleManagement, the 6 stat buildings, kIdleLauncher, kCobbler, kIdleFarm/kIdleLumberyard/kIdleStoneMine, kHovel, kBrickHouse, kLogCabin) were added after being found live in InfoDB.I.Buildings/BlueprintsByLevel but missing from this file. Do not renumber surviving entries if this file is regenerated again - only append or drop.",
   "characters": [
     {
       "enum": "kRecaller",
@@ -149,21 +149,6 @@
       "id": 900106
     },
     {
-      "enum": "kFarm",
-      "display": "Farm",
-      "id": 900108
-    },
-    {
-      "enum": "kLumberyard",
-      "display": "Lumberyard",
-      "id": 900110
-    },
-    {
-      "enum": "kStoneMine",
-      "display": "Stone Mine",
-      "id": 900112
-    },
-    {
       "enum": "kSchoolhouse",
       "display": "Schoolhouse",
       "id": 900113
@@ -209,6 +194,11 @@
       "id": 900122
     },
     {
+      "enum": "kMasseuse",
+      "display": "Spa",
+      "id": 900123
+    },
+    {
       "enum": "kBagMaker",
       "display": "Bag Maker",
       "id": 900124
@@ -227,6 +217,41 @@
       "enum": "kBank",
       "display": "Bank",
       "id": 900127
+    },
+    {
+      "enum": "kIdleManagement",
+      "display": "Worker's Guild",
+      "id": 900131
+    },
+    {
+      "enum": "kEnduranceStatue",
+      "display": "Hospital",
+      "id": 900134
+    },
+    {
+      "enum": "kStrengthStatue",
+      "display": "Warrior's Guild",
+      "id": 900135
+    },
+    {
+      "enum": "kLeadershipStatue",
+      "display": "Capitolium",
+      "id": 900136
+    },
+    {
+      "enum": "kSpeedStatue",
+      "display": "Wagon Factory",
+      "id": 900137
+    },
+    {
+      "enum": "kDexterityStatue",
+      "display": "Marksman's Guild",
+      "id": 900138
+    },
+    {
+      "enum": "kIntelligenceStatue",
+      "display": "Grand Museum",
+      "id": 900139
     },
     {
       "enum": "kGraveyardIdol",
@@ -254,6 +279,11 @@
       "id": 900145
     },
     {
+      "enum": "kIdleLauncher",
+      "display": "Gatherer's Hut",
+      "id": 900146
+    },
+    {
       "enum": "kGemsmith",
       "display": "Gemsmith",
       "id": 900147
@@ -264,14 +294,14 @@
       "id": 900148
     },
     {
-      "enum": "kGatherersHut",
-      "display": "Gatherer's Hut",
-      "id": 900149
-    },
-    {
       "enum": "kWatchTower",
       "display": "Watch Tower",
       "id": 900157
+    },
+    {
+      "enum": "kCobbler",
+      "display": "Road Keeper",
+      "id": 900158
     },
     {
       "enum": "kShroomIdol",
@@ -329,6 +359,21 @@
       "id": 900171
     },
     {
+      "enum": "kIdleFarm",
+      "display": "Farm",
+      "id": 900172
+    },
+    {
+      "enum": "kIdleLumberyard",
+      "display": "Lumberyard",
+      "id": 900173
+    },
+    {
+      "enum": "kIdleStoneMine",
+      "display": "Stone Mine",
+      "id": 900174
+    },
+    {
       "enum": "kWarRoom",
       "display": "War Room",
       "id": 900175
@@ -354,6 +399,11 @@
       "id": 900180
     },
     {
+      "enum": "kHovel",
+      "display": "Theater",
+      "id": 900181
+    },
+    {
       "enum": "kCozyHome",
       "display": "Cozy Home",
       "id": 900182
@@ -367,6 +417,11 @@
       "enum": "kMausoleum",
       "display": "Mausoleum",
       "id": 900184
+    },
+    {
+      "enum": "kBrickHouse",
+      "display": "Iron Fortress",
+      "id": 900185
     },
     {
       "enum": "kCaptainQuarters",
@@ -414,11 +469,6 @@
       "id": 900194
     },
     {
-      "enum": "kMoonIdol",
-      "display": "Void Trophy",
-      "id": 900195
-    },
-    {
       "enum": "kStoneDomain",
       "display": "Stone Domain",
       "id": 900196
@@ -442,6 +492,11 @@
       "enum": "kPartyHouse",
       "display": "Party House",
       "id": 900200
+    },
+    {
+      "enum": "kLogCabin",
+      "display": "Ball House",
+      "id": 900201
     },
     {
       "enum": "kExorcist",

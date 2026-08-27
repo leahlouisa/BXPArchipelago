@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace BallXPitArchipelago;
@@ -32,6 +33,25 @@ public class ApGui : MonoBehaviour
     private static string _status = "";
     private static string _focusedField;
 
+    // Vanilla has no reusable "you unlocked something" popup - the closest things
+    // (ItemUnlockUI, HarvestSummaryUI) are each tied to a specific screen and driven by
+    // internal state this mod has no safe way to fabricate. This toast stack is a
+    // purpose-built substitute instead: it works from any screen, at any time, for
+    // anything ItemReceiver applies (not just things vanilla would normally announce).
+    private const float ToastDurationSecs = 10f;
+    private static readonly List<ToastEntry> _toasts = new();
+
+    private struct ToastEntry
+    {
+        public string Text;
+        public float ExpireAt;
+    }
+
+    internal static void ShowToast(string text)
+    {
+        _toasts.Add(new ToastEntry { Text = text, ExpireAt = Time.time + ToastDurationSecs });
+    }
+
     internal static void Init(ApConfig config)
     {
         _host = config.Host;
@@ -42,6 +62,10 @@ public class ApGui : MonoBehaviour
 
     private void OnGUI()
     {
+        _toasts.RemoveAll(t => Time.time >= t.ExpireAt);
+        if (_toasts.Count > 0)
+            DrawToasts();
+
         var connected = ApConnection.Session != null;
 
         GUILayout.BeginArea(new Rect(10, 10, 260, 300));
@@ -71,6 +95,45 @@ public class ApGui : MonoBehaviour
         if (!string.IsNullOrEmpty(_status))
             GUILayout.Label(_status);
 
+        GUILayout.EndVertical();
+        GUILayout.EndArea();
+    }
+
+    private static Texture2D _toastBg;
+    private static GUIStyle _toastStyle;
+
+    private static void DrawToasts()
+    {
+        // Top-center rather than a corner: gameplay is bullet-hell-adjacent and the
+        // player's eyes are on the middle of the screen, not the edges - a corner toast is
+        // easy to miss entirely in peripheral vision during actual combat.
+        if (_toastBg == null)
+        {
+            _toastBg = new Texture2D(1, 1);
+            _toastBg.SetPixel(0, 0, new Color(0f, 0f, 0f, 0.85f));
+            _toastBg.Apply();
+        }
+
+        if (_toastStyle == null)
+        {
+            _toastStyle = new GUIStyle(GUI.skin.box)
+            {
+                normal = { background = _toastBg, textColor = Color.yellow },
+                fontSize = 40,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleCenter,
+                padding = new RectOffset(24, 24, 14, 14),
+            };
+        }
+
+        const float width = 700;
+        GUILayout.BeginArea(new Rect((Screen.width - width) / 2f, 60, width, Screen.height - 80));
+        GUILayout.BeginVertical();
+        foreach (var toast in _toasts)
+        {
+            GUILayout.Label(toast.Text, _toastStyle);
+            GUILayout.Space(6);
+        }
         GUILayout.EndVertical();
         GUILayout.EndArea();
     }

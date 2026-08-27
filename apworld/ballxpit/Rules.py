@@ -30,30 +30,53 @@ def set_rules(world) -> None:
 
 def _set_blueprint_pool_rules(world) -> None:
     """
-    The mod suppresses vanilla's own blueprint grant for every building in
-    BLUEPRINT_POOLS_BY_LEVEL (see GainBlueprintLocationPatch) and applies whichever
-    cross-level shuffle is computed here - exported via fill_slot_data() and applied by the
-    mod at connect time, rather than the mod computing its own order, specifically so the
-    two can never fall out of sync.
+    Every position in this chain is represented in-game by a dedicated placeholder
+    building (Void Trophy, permanently suppressed - see BlueprintShuffle.cs) rather than
+    by whatever real building this function assigns to that position. That's a deliberate
+    fix for a real bug: vanilla's "next undiscovered blueprint" walk is driven by a
+    building's *global* ownership flag, which can flip out-of-band the instant the
+    matching AP item is received from anywhere in the multiworld - not just when its own
+    level's boss is actually killed. If the list held real building identities, a
+    lucky/unlucky race could silently and permanently skip a check the moment its item
+    arrived early, dropping whatever another player's location happened to hold there.
+    Void Trophy's ownership is never touched by anything except this mechanism, so it can
+    never desync - the mod swaps a fresh placeholder in every time one gets consumed,
+    decoupling "does vanilla still have something to offer this level" from "what item did
+    the player happen to receive and when."
 
-    Confirmed live (see project memory) that vanilla's own "next undiscovered blueprint for
-    this level" logic walks each level's pool sequentially by position, skipping entries
-    whose blueprint has already been granted. Suppressing the grant means that flag is only
-    ever set by actually receiving the matching "Blueprint: X" AP item (from anywhere in the
-    multiworld) - so position N's location only becomes reachable once position N-1's item
-    has been received. That's a genuine progressive dependency chain, not just flavor:
-    getting this rule wrong would let the generator place a required item (most importantly
-    a Level Access item) somewhere provably unreachable without it - an unwinnable seed.
+    That decoupling is also why positions no longer need to match each level's original
+    vanilla count or which buildings vanilla originally put there: the pool below is the
+    full flat set of every real, confirmed-live building across all 8 levels, and this
+    function randomly re-partitions it per seed (every level guaranteed at least one
+    position, the remainder handed out one at a time) - "5 in Boneyard, 16 in Snowy" is a
+    legitimate possible seed. Exported via fill_slot_data() and applied by the mod at
+    connect time, rather than the mod computing its own order or partition, specifically
+    so the two can never fall out of sync.
+
+    Confirmed live (see project memory) that vanilla's own "next undiscovered blueprint
+    for this level" logic walks each level's pool sequentially by position, skipping
+    entries whose blueprint has already been granted - suppressing Void Trophy's grant
+    unconditionally means that flag never flips, so position N's location only becomes
+    reachable once position N-1's item has been received (from anywhere in the
+    multiworld). That's a genuine progressive dependency chain, not just flavor: getting
+    this rule wrong would let the generator place a required item (most importantly a
+    Level Access item) somewhere provably unreachable without it - an unwinnable seed.
     """
     multiworld = world.multiworld
     player = world.player
 
     levels = list(BLUEPRINT_POOLS_BY_LEVEL.keys())
     pool = [b for lvl in levels for b in BLUEPRINT_POOLS_BY_LEVEL[lvl]]
-    counts = [len(BLUEPRINT_POOLS_BY_LEVEL[lvl]) for lvl in levels]
 
     shuffled = list(pool)
     world.random.shuffle(shuffled)
+
+    # Every level starts with a guaranteed 1 position, then the rest of the pool is handed
+    # out one building at a time to a randomly chosen level - counts end up varying a lot
+    # seed to seed rather than mirroring each level's original vanilla size.
+    counts = [1] * len(levels)
+    for _ in range(len(shuffled) - len(levels)):
+        counts[world.random.randrange(len(levels))] += 1
 
     blueprint_order = {}
     cursor = 0
