@@ -2,17 +2,32 @@ from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL
 from .Items import building_enum_to_display, level_access_item_names
 from .Locations import complete_level_location_names
 
+# Declared order in game_data.json's "levels" array (== LevelType enum declaration order,
+# also the order level_access_item_names/complete_level_location_names come in) - NOT the
+# real intended difficulty progression. Only used below to build enum -> item/location
+# lookups from the two already-ordered lists above.
+_LEVEL_ENUMS_IN_DECLARED_ORDER = [
+    "kGraveyard", "kSnowy", "kSavanna", "kHell", "kClouds", "kMoon", "kShroom", "kDesert",
+]
+
+# The real intended difficulty/progression order - confirmed directly with the user, who
+# has played this game extensively (the enum declaration order above is substantially
+# different and not safe to assume: Desert is 3rd here, not last; Vast Void is last, not
+# 6th). Levels are gated so that reaching level N requires already holding every earlier
+# level's "Level Access" item too, not just its own - otherwise a player could receive a
+# late-game level's access item before any earlier one (pure luck of the draw under
+# per-item delivery order) and get dropped into content far above where they're actually
+# equipped to survive.
+LEVEL_UNLOCK_ORDER = [
+    "kGraveyard", "kSnowy", "kDesert", "kShroom", "kSavanna", "kHell", "kClouds", "kMoon",
+]
+
 
 def set_rules(world) -> None:
     multiworld = world.multiworld
     player = world.player
 
-    # Beating a biome requires having been granted access to it - see LocationHooks.cs on
-    # the mod side, which overrides the level-select screen's locked/unlocked decision to
-    # read from received "Level Access" items instead of the vanilla elevator/gear economy.
-    for level_loc_name, access_item in zip(complete_level_location_names, level_access_item_names):
-        location = multiworld.get_location(level_loc_name, player)
-        location.access_rule = lambda state, item=access_item: state.has(item, player)
+    _set_level_order_rules(world)
 
     # "Land Expansion #n" locations have no access rule (same as Elevator Upgrade
     # locations): purchases are unrestricted vanilla, not gated on any received item - see
@@ -26,6 +41,50 @@ def set_rules(world) -> None:
     # 8 levels are truly beaten - this is just the logic-side condition the generator uses
     # to guarantee the seed is solvable.
     multiworld.completion_condition[player] = lambda state: state.has_all(level_access_item_names, player)
+
+
+def _set_level_order_rules(world) -> None:
+    """
+    Gates "Complete Level: X" locations on holding every earlier level's "Level Access"
+    item too (per LEVEL_UNLOCK_ORDER), not just level X's own - LocationHooks.cs's
+    LevelSelectItemInitLockedPatch enforces the identical requirement at the actual
+    level-select screen (parsed from fill_slot_data()'s level_unlock_order, not
+    hand-duplicated on the mod side, so the two can never disagree about the order). This
+    function has to encode the *same* full requirement, not just "needs the immediately
+    prior level's item": access rules are evaluated purely from what's currently held, with
+    no memory of how that state was reached, so state.has("Level Access: Shroom") alone
+    doesn't imply the player also holds earlier levels' items - AP is free to deliver
+    Shroom's access item from a completely unrelated check with no relation to whether
+    earlier levels' items have arrived yet.
+
+    The first level in LEVEL_UNLOCK_ORDER is the vanilla starting level - already unlocked
+    the moment a save is created, no item needed to reach it (confirmed live) - so it's
+    excluded from the chain entirely: its own location gets no access rule, and later
+    levels don't require its "Level Access" item either. Requiring it would be meaningless
+    (nothing gates it) and could actively hurt: if that item happened to land somewhere
+    inconvenient, it would artificially delay every later level behind an item whose
+    corresponding level was reachable from the very start.
+    """
+    multiworld = world.multiworld
+    player = world.player
+
+    item_by_level = dict(zip(_LEVEL_ENUMS_IN_DECLARED_ORDER, level_access_item_names))
+    location_by_level = dict(zip(_LEVEL_ENUMS_IN_DECLARED_ORDER, complete_level_location_names))
+
+    starting_level = LEVEL_UNLOCK_ORDER[0]
+    multiworld.get_location(location_by_level[starting_level], player).access_rule = lambda state: True
+
+    required_so_far = []
+    for level_enum in LEVEL_UNLOCK_ORDER[1:]:
+        required_so_far.append(item_by_level[level_enum])
+        location = multiworld.get_location(location_by_level[level_enum], player)
+        needed = list(required_so_far)
+        location.access_rule = lambda state, items=needed: state.has_all(items, player)
+
+    # Read back by fill_slot_data() - the mod enforces this exact order at the level-select
+    # screen rather than hand-duplicating it, so generation-time logic and runtime behavior
+    # can never diverge.
+    world.level_unlock_order = LEVEL_UNLOCK_ORDER
 
 
 def _set_blueprint_pool_rules(world) -> None:

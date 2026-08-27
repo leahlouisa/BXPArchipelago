@@ -123,10 +123,14 @@ public class ApGui : MonoBehaviour
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 padding = new RectOffset(24, 24, 14, 14),
+                wordWrap = true,
             };
         }
 
-        const float width = 700;
+        // Long item names were getting clipped at the old fixed 700px - scale with the
+        // screen instead (with a generous cap) and wrap as a fallback for anything that
+        // still doesn't fit on one line.
+        var width = Mathf.Min(1100f, Screen.width - 40f);
         GUILayout.BeginArea(new Rect((Screen.width - width) / 2f, 60, width, Screen.height - 80));
         GUILayout.BeginVertical();
         foreach (var toast in _toasts)

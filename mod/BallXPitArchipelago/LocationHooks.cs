@@ -247,7 +247,7 @@ internal static class LevelSelectItemInitLockedPatch
         if (ngPlus != 0 || inf == null)
             return true; // NG+ levels are out of v1 scope - leave vanilla behavior alone.
 
-        var unlocked = ItemReceiver.UnlockedLevels.Contains(inf.Type);
+        var unlocked = LevelUnlockOrder.IsReachable(inf.Type);
         LocationHooks.Log?.Msg(
             $"LevelSelectItem.InitLocked({inf.Type}): AP-unlocked={unlocked}, " +
             $"UnlockedLevels=[{string.Join(", ", ItemReceiver.UnlockedLevels)}]");

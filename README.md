@@ -29,8 +29,7 @@ Complete all 8 biome levels.
 
 - Characters (22) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
 - Level Access (8) - required to make the matching biome selectable; this is what actually gates progress toward the goal
-- Land Expansion (No Effect) (24) - filler, does nothing on its own (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost)
-- Wood / Stone / Wheat / Gold - small filler resource grants
+- Wood / Stone / Wheat / Gold - filler resource grants (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost - these checks just grant Wood/Stone/Wheat like any other filler)
 
 ### Options
 

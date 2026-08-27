@@ -76,6 +76,7 @@ public static class ApConnection
         // applies a little later instead of failing.
         BlueprintShuffle.ApplyFromSlotData(success.SlotData, config.Slot, session.RoomState.Seed);
         BlueprintShuffle.ApplyCharHousingOnce(session.RoomState.Seed);
+        LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
 
         // No session.Items.ItemReceived subscription: that event fires on the network
         // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main

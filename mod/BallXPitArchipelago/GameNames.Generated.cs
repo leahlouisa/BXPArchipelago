@@ -26,7 +26,7 @@ internal static partial class GameNames
         { CharType.kShade, "Shade" },
         { CharType.kCohabitants, "Cohabitants" },
         { CharType.kPhysicist, "Physicist" },
-        { CharType.kBrickHead, "Brick Head" },
+        { CharType.kBrickHead, "Shieldbearer" },
         { CharType.kSisyphus, "Sisyphus" },
         { CharType.kFlagellant, "Flagellant" },
         { CharType.kWimp, "Wimp" },

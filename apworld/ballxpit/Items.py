@@ -22,7 +22,6 @@ _game_data = json.loads(
 # unrestricted vanilla. This number just needs to match between Items.py and Locations.py
 # so "Land Expansion #n" locations exist for exactly as many chunks as are purchasable.
 LAND_EXPANSION_COUNT = 24
-LAND_EXPANSION_ITEM_ID = 900400
 
 # Matches the game's real elevator-upgrade cadence: 8 levels, the first free, each of the
 # other 7 needing one elevator upgrade (escalating gear cost) - see BaseMgr.RunElevatorUpgrade
@@ -77,15 +76,6 @@ for _b in _game_data["buildings"]:
 for _l in _game_data["levels"]:
     item_table[f"Level Access: {_l['display']}"] = ItemData(_l["id"], ItemClassification.progression)
 
-# Genuinely has no gameplay effect when received - land expansion purchases are
-# unrestricted vanilla (see ConfirmExpansionLocationPatch in the mod), so there's nothing
-# left for this item to grant. filler (not useful) is the honest AP classification for
-# that, and the name says so explicitly - a plain "Progressive Land Expansion" name looked
-# exactly like every other real reward, which was confusing (a check that visibly "does
-# nothing" reads as broken, not as a deliberate no-op).
-LAND_EXPANSION_ITEM_NAME = "Land Expansion (No Effect)"
-item_table[LAND_EXPANSION_ITEM_NAME] = ItemData(LAND_EXPANSION_ITEM_ID, ItemClassification.filler)
-
 for _name, _code in FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)
 
@@ -98,6 +88,17 @@ level_access_item_names = [f"Level Access: {l['display']}" for l in _game_data["
 # names.
 building_enum_to_display = {b["enum"]: b["display"] for b in _game_data["buildings"]}
 
+# Buildings nudged toward early placement (soft bias via World.generate_early - not a
+# guarantee, the fill algorithm can still push one later if other constraints crowd it out)
+# - confirmed with the user live: the early-tier economy/warfare buildings in Boneyard and
+# Snowy's resource buildings, so a player with average luck isn't stuck too long without
+# early-game economy options while the rest of the pool stays fully randomized.
+_EARLY_BUILDING_ENUMS = [
+    "kConsulate", "kSchoolhouse", "kShoemaker", "kGunsmith", "kBarracks", "kClinic",
+    "kIdleFarm", "kIdleLumberyard", "kIdleStoneMine",
+]
+early_blueprint_item_names = [f"Blueprint: {building_enum_to_display[b]}" for b in _EARLY_BUILDING_ENUMS]
+
 # Padding to keep the item pool exactly matching the location count (see __init__.py) -
 # the "Elevator Upgrade #n" locations don't have a matching item category of their own
 # (they're new checks on an existing vanilla action, not gating anything), so filler covers
@@ -105,4 +106,18 @@ building_enum_to_display = {b["enum"]: b["display"] for b in _game_data["buildin
 _filler_names_cycle = list(FILLER_ITEM_IDS.keys())
 elevator_upgrade_filler_item_names = [
     _filler_names_cycle[i % len(_filler_names_cycle)] for i in range(ELEVATOR_UPGRADE_COUNT)
+]
+
+# "Land Expansion #n" locations don't have a matching item category of their own either
+# (purchases stay unrestricted vanilla - see ConfirmExpansionLocationPatch in the mod, so
+# there's nothing real left for an item to gate) - these used to be a dedicated "Land
+# Expansion (No Effect)" filler item that genuinely did nothing on receipt, which reads as
+# no fun at all for the player. Cycling real Wood/Stone/Wheat grants instead keeps the
+# same "nothing is logically gated here" honesty while still being a small treat to
+# receive. Gold deliberately excluded, unlike the elevator upgrade filler cycle above -
+# land expansion is themed around base-building resources, not currency.
+_land_expansion_filler_names_cycle = ["Wood", "Stone", "Wheat"]
+land_expansion_filler_item_names = [
+    _land_expansion_filler_names_cycle[i % len(_land_expansion_filler_names_cycle)]
+    for i in range(LAND_EXPANSION_COUNT)
 ]

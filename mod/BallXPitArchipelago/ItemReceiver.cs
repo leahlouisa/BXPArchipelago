@@ -14,12 +14,13 @@ namespace BallXPitArchipelago;
 ///   "Blueprint: {display}"        -> SaveMgr.I.GainBlueprint(BuildingType.k{Token})
 ///   "Level Access: {display}"     -> added to UnlockedLevels, read by LocationHooks'
 ///                                     LevelSelectItem.InitLocked gate
-///   "Land Expansion (No Effect)"  -> purely cosmetic, no gameplay effect (land expansion
-///                                     purchases are unrestricted vanilla - see
-///                                     ConfirmExpansionLocationPatch in LocationHooks.cs) -
-///                                     the name says so explicitly so it doesn't read as a
-///                                     broken check when nothing visibly happens
-///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant
+///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant - also
+///                                     what "Land Expansion #n" locations grant (land
+///                                     expansion purchases are unrestricted vanilla - see
+///                                     ConfirmExpansionLocationPatch in LocationHooks.cs -
+///                                     so there's nothing real left to gate; a genuine
+///                                     resource grant reads better than a dedicated "no
+///                                     effect" item, reported live)
 ///
 /// Characters and Blueprints are also grantable by vanilla game logic, through the same
 /// SaveMgr methods this applies AP items with - IsApplyingItem tells LocationHooks "this
@@ -47,7 +48,8 @@ namespace BallXPitArchipelago;
 /// </summary>
 public static class ItemReceiver
 {
-    private const int FillerResourceAmount = 20;
+    private const int WoodStoneWheatFillerAmount = 50;
+    private const int GoldFillerAmount = 200;
 
     private static MelonLogger.Instance _log;
     private static ApState _state;
@@ -168,14 +170,6 @@ public static class ItemReceiver
             return true;
         }
 
-        if (itemName == "Land Expansion (No Effect)")
-        {
-            // Purely cosmetic - land expansion purchases are unrestricted vanilla, see
-            // ConfirmExpansionLocationPatch. Nothing to apply.
-            ApGui.ShowToast($"Received: {itemName}");
-            return true;
-        }
-
         if (itemName is "Wood" or "Stone" or "Wheat" or "Gold")
         {
             var resourceType = itemName switch
@@ -186,9 +180,10 @@ public static class ItemReceiver
                 "Gold" => ResourceType.kGold,
                 _ => throw new InvalidOperationException(),
             };
+            var amount = resourceType == ResourceType.kGold ? GoldFillerAmount : WoodStoneWheatFillerAmount;
             return TryApplyGuarded(
-                () => SaveMgr.I.AddResources(resourceType, FillerResourceAmount, false, false),
-                $"Granted {FillerResourceAmount} {resourceType}",
+                () => SaveMgr.I.AddResources(resourceType, amount, false, false),
+                $"Granted {amount} {resourceType}",
                 itemName);
         }
 
