@@ -1,6 +1,8 @@
+from BaseClasses import ItemClassification, LocationProgressType
+
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL, TROPHY_BUILDING_BY_LEVEL
 from .Items import building_enum_to_display, level_access_item_names
-from .Locations import complete_level_location_names
+from .Locations import complete_level_location_names, land_expansion_location_names
 
 # Declared order in game_data.json's "levels" array (== LevelType enum declaration order,
 # also the order level_access_item_names/complete_level_location_names come in) - NOT the
@@ -29,15 +31,15 @@ def set_rules(world) -> None:
 
     _set_level_order_rules(world)
 
-    # "Land Expansion #n" locations have no access rule (same as Elevator Upgrade
-    # locations): purchases are unrestricted vanilla, not gated on any received item - see
+    # "Land Expansion #n" and "Elevator Upgrade #n" locations have no access rule: purchases
+    # are unrestricted vanilla, not gated on any received item - see
     # ConfirmExpansionLocationPatch in the mod. Whether a player can actually reach #n
     # in-game depends on the vanilla resource economy, which isn't modeled in logic. These
-    # two aren't tied to any specific level either (elevator progress and land purchases
-    # are earned/spent across the whole game, not gated behind one particular biome), so
-    # unlike blueprint and trophy locations below, they genuinely don't need level-access
-    # gating on top.
+    # two aren't tied to any specific level either (elevator progress and land purchases are
+    # earned/spent across the whole game, not gated behind one particular biome), so unlike
+    # blueprint and trophy locations below, they genuinely don't need level-access gating.
 
+    _set_land_expansion_rules(world)
     _set_blueprint_pool_rules(world)
     _set_trophy_rules(world)
 
@@ -63,6 +65,51 @@ def _level_access_requirements() -> dict:
         required_so_far.append(item_by_level[level_enum])
         requirements[level_enum] = list(required_so_far)
     return requirements
+
+
+def _set_land_expansion_rules(world) -> None:
+    """
+    Land Expansion purchase cost is a fixed, steadily escalating gold curve (confirmed with
+    the user: #1 is 200g, +100g each expansion after, #24 is 2500g - not counting whatever
+    was already spent buying the ones before it) - not something this world models in
+    logic (see set_rules' comment on why access_rule is left alone for these). Left
+    completely unrestricted, the generator could place a real progression item (a Level
+    Access item, or a blueprint chain item gating further progress) behind "Land Expansion
+    #24" - the seed would still be technically solvable, since the location does eventually
+    become reachable given enough playtime, but a player could be stalled for a very long
+    time grinding gold for a purchase whose only purpose was holding something they
+    actually needed to keep moving.
+
+    Restricting all 24 via item_rule leaves the fill algorithm too little room to work with
+    (confirmed live: real generation failed outright, 12 progression items short of a valid
+    placement - Land Expansion's total lack of access_rule makes it one of the only
+    "reachable from the very start" pools of locations available to place early-chain
+    progression items into, so removing all 24 from eligibility starves the fill). Confirmed
+    live that the deficit scales exactly 1:1 with how many are restricted, so #1-15
+    (200g-1700g) stay unrestricted - 3 positions of margin above the exact 12-open
+    break-even point, not just the bare minimum, since shipping at an exact break-even is
+    risky (a future item pool change of even one item could tip it back into failure).
+    #16-24 (1800g-2500g) are restricted to non-progression items.
+
+    Within the 15 unrestricted, #1-5 (200g-600g, the cheapest) are also nudged toward
+    holding progression items via LocationProgressType.PRIORITY - a soft bias, not a hard
+    requirement (deliberately NOT an access_rule chain like the blueprint/level-order
+    chains: that would make #2-15 each conditionally reachable instead of immediately
+    available, shrinking the "reachable from the start" pool the fill algorithm actually
+    needed more of to resolve the deficit above in the first place - counterproductive
+    here). Confirmed live that `multiworld.priority_locations` doesn't exist on this AP
+    core version's MultiWorld (AttributeError) - progress_type on the Location itself is
+    the correct mechanism instead.
+    """
+    multiworld = world.multiworld
+    player = world.player
+
+    for loc_name in land_expansion_location_names[:5]:
+        multiworld.get_location(loc_name, player).progress_type = LocationProgressType.PRIORITY
+
+    for loc_name in land_expansion_location_names[15:]:
+        location = multiworld.get_location(loc_name, player)
+        location.item_rule = lambda item: not (item.classification & ItemClassification.progression)
 
 
 def _set_level_order_rules(world) -> None:
