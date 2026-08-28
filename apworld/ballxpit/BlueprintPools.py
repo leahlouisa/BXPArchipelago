@@ -46,12 +46,18 @@ BLUEPRINT_POOLS_BY_LEVEL = {
     ],
 }
 
-# The 7 level-completion Trophy buildings that stay part of the randomizer - one-time
-# events (not a sequential pool to walk), so they're safe to suppress with no dependency
-# chain needed at all. kMoonIdol (Void Trophy) is deliberately NOT here - it's permanently
-# suppressed and repurposed as BlueprintShuffle's placeholder sentinel instead of being a
-# real check/item (see BlueprintShuffle.cs and LocationHooks.cs).
-TROPHY_BUILDINGS = [
-    "kGraveyardIdol", "kBattlefieldIdol", "kSavannaIdol", "kHellIdol", "kHeavenIdol",
-    "kShroomIdol", "kDesertIdol",
-]
+# The 7 level-completion Trophy buildings that stay part of the randomizer, keyed by the
+# level whose first completion grants them - one-time events (not a sequential pool to
+# walk), so they're safe to suppress with no dependency chain needed at all. kMoonIdol
+# (Void Trophy) is deliberately NOT here - it's permanently suppressed and repurposed as
+# BlueprintShuffle's placeholder sentinel instead of being a real check/item (see
+# BlueprintShuffle.cs and LocationHooks.cs).
+TROPHY_BUILDING_BY_LEVEL = {
+    "kGraveyard": "kGraveyardIdol",
+    "kSnowy": "kBattlefieldIdol",
+    "kSavanna": "kSavannaIdol",
+    "kHell": "kHellIdol",
+    "kClouds": "kHeavenIdol",
+    "kShroom": "kShroomIdol",
+    "kDesert": "kDesertIdol",
+}
