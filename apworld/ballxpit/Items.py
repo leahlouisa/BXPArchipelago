@@ -73,15 +73,26 @@ for _b in _game_data["buildings"]:
     item_table[f"Blueprint: {_b['display']}"] = ItemData(_b["id"], _classification)
 
 # Level Access items ARE required (they gate the "Complete Level" locations and the goal).
-for _l in _game_data["levels"]:
-    item_table[f"Level Access: {_l['display']}"] = ItemData(_l["id"], ItemClassification.progression)
-
 for _name, _code in FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)
 
+# Progressive item, not one item per level: every copy received unlocks whichever level is
+# next in the receiving player's own real difficulty order (Rules.py's LEVEL_UNLOCK_ORDER),
+# regardless of which level's placement in the multiworld actually delivered it. Confirmed
+# live this matters - with one distinct "Level Access: X" item per level, a late-order
+# level's item could (and did) arrive before an earlier one, and just sat in inventory doing
+# nothing until every earlier level's item had also arrived: a real AP grant with no visible
+# in-game effect, confusing to a player who doesn't know the internal ordering logic. One
+# copy per level except the starting one (already free from a fresh save, no item needed).
+PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME = "Progressive Level Access"
+PROGRESSIVE_LEVEL_ACCESS_ITEM_ID = 900700
+PROGRESSIVE_LEVEL_ACCESS_COUNT = len(_game_data["levels"]) - 1
+item_table[PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME] = ItemData(
+    PROGRESSIVE_LEVEL_ACCESS_ITEM_ID, ItemClassification.progression
+)
+
 character_item_names = [f"Character: {c['display']}" for c in _game_data["characters"]]
 blueprint_item_names = [f"Blueprint: {b['display']}" for b in _game_data["buildings"]]
-level_access_item_names = [f"Level Access: {l['display']}" for l in _game_data["levels"]]
 
 # BuildingType enum token -> display name, needed to translate BlueprintPools.py's enum
 # tokens (ground truth captured from the mod's own debug logging) into real item/location
@@ -121,3 +132,11 @@ land_expansion_filler_item_names = [
     _land_expansion_filler_names_cycle[i % len(_land_expansion_filler_names_cycle)]
     for i in range(LAND_EXPANSION_COUNT)
 ]
+
+# One more padding item, for the same reason as the two filler lists above: switching from
+# 8 distinct "Level Access: X" items to PROGRESSIVE_LEVEL_ACCESS_COUNT (7) copies of one
+# progressive item dropped the pool by exactly 1 (there's no item for the starting level
+# any more - it was never actually needed by anything, just previously placed to fill out
+# the per-level item set 1:1). Location count is unaffected, so one more filler item keeps
+# the pool balanced.
+padding_filler_item_names = ["Gold"]

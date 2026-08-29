@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Il2Cpp;
 using Newtonsoft.Json.Linq;
 
@@ -9,11 +8,15 @@ namespace BallXPitArchipelago;
 /// <summary>
 /// Enforces the real intended difficulty progression (confirmed live with the user, not the
 /// LevelType enum declaration order - the two differ substantially) at the level-select
-/// screen: a level is only treated as unlocked once every earlier level's "Level Access"
-/// item has also been received, not just its own. Without this, per-item delivery order in
-/// a multiworld is unrelated to difficulty - a player could receive a late-game level's
-/// access item before any earlier one and get dropped into content far above where they're
-/// actually equipped to survive (reported live).
+/// screen: a level is only treated as unlocked once the player holds enough copies of the
+/// "Progressive Level Access" item to cover every earlier level too, not just its own.
+/// Without this, per-item delivery order in a multiworld is unrelated to difficulty - a
+/// player could receive access far above where they're actually equipped to survive
+/// (reported live). A single progressive item (rather than one distinct item per level, the
+/// original design) means every copy received always does something - it unlocks whichever
+/// level is next in the player's own order, never a level further out that would just sit
+/// doing nothing until earlier ones caught up (also reported live: confusing, since an AP
+/// grant with no visible effect looks like a bug even when it isn't one).
 ///
 /// The order itself is computed once at generation time (Rules.py's LEVEL_UNLOCK_ORDER) and
 /// read from slot data here rather than hand-duplicated, so the generator's access rules
@@ -51,32 +54,37 @@ internal static class LevelUnlockOrder
     }
 
     /// <summary>
-    /// True once every level up to and including this one (in the real difficulty order)
-    /// has had its "Level Access" item received - not just this level's own item, so bad
-    /// luck on delivery order can't hand the player a high-tier level before they're able
-    /// to realistically survive it.
+    /// True once the player holds at least as many "Progressive Level Access" copies as
+    /// this level's position in the real difficulty order requires (0 for the starting
+    /// level, which needs none - see Rules.py's _level_access_positions). Every copy
+    /// received always unlocks whichever level is next in this order, regardless of when
+    /// or from where it arrived in the multiworld - so unlike the old per-level-item
+    /// design, there's no way for a level to be "skipped over": position N can only ever
+    /// become reachable once positions 1..N-1 already are.
     /// </summary>
     internal static bool IsReachable(LevelType type)
     {
-        // Slot data not loaded yet, or this level isn't in the parsed order (shouldn't
-        // happen for any of the 8 real levels) - fall back to the old single-item check
-        // rather than lock everything out while we're still catching up.
+        // Slot data not loaded yet - err locked rather than guessing (this window is brief,
+        // right after connecting, and the alternative of guessing wrong risks the exact bug
+        // this whole system exists to prevent).
         if (_order == null || _order.Count == 0)
-            return ItemReceiver.UnlockedLevels.Contains(type);
+            return false;
 
-        // The first level in the order is the vanilla starting level - already unlocked the
-        // moment a save is created, no item needed (confirmed live), so it's excluded from
-        // the chain entirely: always reachable itself, and never required as a prerequisite
-        // for anything later (see Rules.py's _set_level_order_rules for why).
-        if (type == _order[0])
-            return true;
+        var position = _order.IndexOf(type);
+        return position >= 0 && ItemReceiver.ProgressiveLevelAccessCount >= position;
+    }
 
-        if (!_order.Contains(type))
-            return ItemReceiver.UnlockedLevels.Contains(type);
+    /// <summary>
+    /// Which level becomes reachable once the player holds exactly `count` copies of the
+    /// progressive item (0 = the starting level, already reachable with none) - used only
+    /// to report which level a specific received copy unlocked, e.g. for the receipt toast.
+    /// Null if slot data isn't loaded yet or count is out of range.
+    /// </summary>
+    internal static LevelType? LevelForCount(int count)
+    {
+        if (_order == null || count < 0 || count >= _order.Count)
+            return null;
 
-        return _order.Skip(1)
-            .TakeWhile(lt => lt != type)
-            .Append(type)
-            .All(ItemReceiver.UnlockedLevels.Contains);
+        return _order[count];
     }
 }

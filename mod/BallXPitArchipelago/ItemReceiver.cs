@@ -12,8 +12,9 @@ namespace BallXPitArchipelago;
 /// Item name convention (must match the ballxpit apworld's item table):
 ///   "Character: {display}"        -> SaveMgr.I.UnlockChar(CharType.k{Token})
 ///   "Blueprint: {display}"        -> SaveMgr.I.GainBlueprint(BuildingType.k{Token})
-///   "Level Access: {display}"     -> added to UnlockedLevels, read by LocationHooks'
-///                                     LevelSelectItem.InitLocked gate
+///   "Progressive Level Access"    -> counted (not tracked per-level - see
+///                                     ProgressiveLevelAccessCount), read by LocationHooks'
+///                                     LevelSelectItem gates via LevelUnlockOrder.IsReachable
 ///   "Wood" / "Stone" / "Wheat" / "Gold" -> SaveMgr.I.AddResources(...) filler grant - also
 ///                                     what "Land Expansion #n" locations grant (land
 ///                                     expansion purchases are unrestricted vanilla - see
@@ -34,11 +35,11 @@ namespace BallXPitArchipelago;
 /// (IReceivedItemsHelper.AllItemsReceived grows to hold the full history, not just new
 /// items). Character/Blueprint/resource grants write into the game's own save file, so
 /// it's safe (and necessary, to avoid double-granting) to apply each one only once, tracked
-/// via ApState's cursor. Level Access has no representation anywhere in the game's save file
-/// though - UnlockedLevels lives only in this mod's memory - so applying it once via the same
-/// cursor would silently lose it on every reconnect or process restart (the cursor says
-/// "already applied", so it'd never be re-added to the in-memory state). Recomputed from the
-/// full history every time instead.
+/// via ApState's cursor. Progressive Level Access has no representation anywhere in the
+/// game's save file though - ProgressiveLevelAccessCount lives only in this mod's memory -
+/// so applying it once via the same cursor would silently lose it on every reconnect or
+/// process restart (the cursor says "already applied", so it'd never be re-added to the
+/// in-memory state). Recomputed from the full history every time instead.
 ///
 /// Deliberately not wired to session.Items.ItemReceived: that event fires on Archipelago's
 /// network thread, and SaveMgr/IL2CPP calls aren't safe off Unity's main thread. Instead
@@ -50,12 +51,15 @@ public static class ItemReceiver
 {
     private const int WoodStoneWheatFillerAmount = 50;
     private const int GoldFillerAmount = 200;
+    private const string ProgressiveLevelAccessItemName = "Progressive Level Access";
 
     private static MelonLogger.Instance _log;
     private static ApState _state;
 
     internal static bool IsApplyingItem { get; private set; }
-    internal static readonly HashSet<LevelType> UnlockedLevels = new();
+
+    /// <summary>How many "Progressive Level Access" copies have been received so far - see LevelUnlockOrder.IsReachable.</summary>
+    internal static int ProgressiveLevelAccessCount { get; private set; }
 
     public static void CatchUp(IReceivedItemsHelper items, string slot, string seedName, MelonLogger.Instance log)
     {
@@ -92,11 +96,24 @@ public static class ItemReceiver
 
         RecomputeInMemoryState(all);
 
+        // Running count of "Progressive Level Access" copies seen so far, as of (and
+        // including) the item about to be applied - lets ApplyPersistent report which
+        // level a given copy unlocked, without re-scanning the whole history per item.
+        // Recomputed from 0 every Drain() call rather than persisted, so it stays correct
+        // even after a failed-and-retried item (which doesn't advance the cursor).
+        var progressiveSeen = 0;
+        for (var i = 0; i < _state.AppliedItemCount; i++)
+            if (all[i].ItemName == ProgressiveLevelAccessItemName)
+                progressiveSeen++;
+
         for (var i = _state.AppliedItemCount; i < all.Count; i++)
         {
+            if (all[i].ItemName == ProgressiveLevelAccessItemName)
+                progressiveSeen++;
+
             // Stop at the first item that fails to apply rather than skipping past it -
             // it (and anything after it) gets retried from here on the next Drain() call.
-            if (!ApplyPersistent(all[i].ItemName))
+            if (!ApplyPersistent(all[i].ItemName, progressiveSeen))
                 break;
 
             _state.AppliedItemCount = i + 1;
@@ -114,30 +131,25 @@ public static class ItemReceiver
 
     private static void RecomputeInMemoryState(ReadOnlyCollection<ItemInfo> all)
     {
-        UnlockedLevels.Clear();
-
+        var count = 0;
         foreach (var item in all)
         {
-            var itemName = item.ItemName;
-
-            if (itemName.StartsWith("Level Access: "))
-            {
-                var display = itemName["Level Access: ".Length..];
-                if (GameNames.TryParseLevel(display, out var levelType))
-                    UnlockedLevels.Add(levelType);
-                else
-                    _log.Warning($"Unknown level access item: {itemName}");
-            }
+            if (item.ItemName == ProgressiveLevelAccessItemName)
+                count++;
         }
+
+        ProgressiveLevelAccessCount = count;
     }
 
     /// <summary>
     /// Character/Blueprint/resource grants - applied once and tracked by ApState's cursor.
     /// Returns false only for a transient failure worth retrying (the SaveMgr call itself
     /// threw); an unresolvable name is logged and treated as "handled" (true) since retrying
-    /// it would never succeed.
+    /// it would never succeed. progressiveCount is only meaningful for a "Progressive Level
+    /// Access" item - how many copies (including this one) have been seen so far, used to
+    /// report which level this specific copy unlocked.
     /// </summary>
-    private static bool ApplyPersistent(string itemName)
+    private static bool ApplyPersistent(string itemName, int progressiveCount)
     {
         if (itemName.StartsWith("Character: "))
         {
@@ -163,10 +175,17 @@ public static class ItemReceiver
             return TryApplyGuarded(() => SaveMgr.I.GainBlueprint(buildingType), $"Gained blueprint {buildingType}", itemName);
         }
 
-        if (itemName.StartsWith("Level Access: "))
+        if (itemName == ProgressiveLevelAccessItemName)
         {
-            // Handled by RecomputeInMemoryState every Drain() call, not here.
-            ApGui.ShowToast($"Received: {itemName}");
+            // The count itself is handled by RecomputeInMemoryState every Drain() call, not
+            // here - this just reports which level this specific copy unlocked, if we know
+            // the real order yet (LevelUnlockOrder.ApplyFromSlotData may not have run yet
+            // this early after connecting).
+            var unlockedLevel = LevelUnlockOrder.LevelForCount(progressiveCount);
+            var toast = unlockedLevel.HasValue
+                ? $"Received: Progressive Level Access ({GameNames.LevelDisplay(unlockedLevel.Value)} unlocked!)"
+                : $"Received: {itemName}";
+            ApGui.ShowToast(toast);
             return true;
         }
 

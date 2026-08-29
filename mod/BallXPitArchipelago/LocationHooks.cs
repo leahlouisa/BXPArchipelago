@@ -259,7 +259,7 @@ internal static class LevelSelectItemInitLockedPatch
         var unlocked = LevelUnlockOrder.IsReachable(inf.Type);
         LocationHooks.Log?.Msg(
             $"LevelSelectItem.InitLocked({inf.Type}): AP-unlocked={unlocked}, " +
-            $"UnlockedLevels=[{string.Join(", ", ItemReceiver.UnlockedLevels)}]");
+            $"ProgressiveLevelAccessCount={ItemReceiver.ProgressiveLevelAccessCount}");
 
         if (!unlocked)
             return true;

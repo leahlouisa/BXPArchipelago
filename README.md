@@ -19,7 +19,7 @@ Complete all 8 biome levels.
 - Unlocking a building blueprint (80), in three flavors:
   - **62 buildings** are drawn from every level's real boss-drop pool and pooled together across all 8 biomes, then re-partitioned per seed with a randomized count per level - one seed might offer 3 blueprints in the Boneyard and 12 in the Savanna, the next something entirely different. The vanilla building itself is fully replaced by a random check reward; discovery order and how many a biome offers are both shuffled per-seed.
   - **7 per-level first-completion "Trophies"** work the same way - suppressed and replaced by a random check reward the first time you beat that biome.
-  - **A handful of other buildings** (tied to specific characters via housing) still work the older way - you get the real vanilla building *and* a bonus check reward from the same trigger.
+  - **A handful of other buildings** are tied to specific characters via housing (beating a level with a not-yet-housed character grants their housing building) - these work the same way as the other two categories: fully replaced by a random check reward, no real building granted directly.
   - One specific building, the **Void Trophy**, is deliberately excluded from all of the above and never appears as a reward in any seed - it's permanently repurposed as internal plumbing that keeps the blueprint-discovery chain correct (see the "For developers" section if you're curious why).
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
@@ -28,7 +28,7 @@ Complete all 8 biome levels.
 ### Items (141 total, matching the check count exactly)
 
 - Characters (22) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
-- Level Access (8) - required to make the matching biome selectable; this is what actually gates progress toward the goal
+- Progressive Level Access (7 copies of one item) - each copy received unlocks whichever biome is next in your own real difficulty order (not the same as the order levels are listed in-game), regardless of when or from where it arrives in the multiworld; this is what actually gates progress toward the goal
 - Wood / Stone / Wheat / Gold - filler resource grants (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost - these checks just grant Wood/Stone/Wheat like any other filler)
 
 ### Options

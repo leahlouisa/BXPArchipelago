@@ -2,6 +2,8 @@ from BaseClasses import Tutorial
 from worlds.AutoWorld import WebWorld, World
 
 from .Items import (
+    PROGRESSIVE_LEVEL_ACCESS_COUNT,
+    PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME,
     BallXPitItem,
     blueprint_item_names,
     character_item_names,
@@ -9,7 +11,7 @@ from .Items import (
     elevator_upgrade_filler_item_names,
     item_table,
     land_expansion_filler_item_names,
-    level_access_item_names,
+    padding_filler_item_names,
 )
 from .Locations import location_table
 from .Options import BallXPitOptions
@@ -62,9 +64,10 @@ class BallXPitWorld(World):
         items = []
         items += [self.create_item(name) for name in character_item_names]
         items += [self.create_item(name) for name in blueprint_item_names]
-        items += [self.create_item(name) for name in level_access_item_names]
+        items += [self.create_item(PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME) for _ in range(PROGRESSIVE_LEVEL_ACCESS_COUNT)]
         items += [self.create_item(name) for name in land_expansion_filler_item_names]
         items += [self.create_item(name) for name in elevator_upgrade_filler_item_names]
+        items += [self.create_item(name) for name in padding_filler_item_names]
         self.multiworld.itempool += items
 
     def set_rules(self) -> None:

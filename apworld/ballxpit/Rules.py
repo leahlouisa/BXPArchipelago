@@ -1,13 +1,13 @@
 from BaseClasses import ItemClassification, LocationProgressType
 
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL, TROPHY_BUILDING_BY_LEVEL
-from .Items import building_enum_to_display, level_access_item_names
+from .Items import PROGRESSIVE_LEVEL_ACCESS_COUNT, PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, building_enum_to_display
 from .Locations import complete_level_location_names, land_expansion_location_names
 
 # Declared order in game_data.json's "levels" array (== LevelType enum declaration order,
-# also the order level_access_item_names/complete_level_location_names come in) - NOT the
-# real intended difficulty progression. Only used below to build enum -> item/location
-# lookups from the two already-ordered lists above.
+# also the order complete_level_location_names comes in) - NOT the real intended difficulty
+# progression. Only used below to build an enum -> location lookup from that already-ordered
+# list.
 _LEVEL_ENUMS_IN_DECLARED_ORDER = [
     "kGraveyard", "kSnowy", "kSavanna", "kHell", "kClouds", "kMoon", "kShroom", "kDesert",
 ]
@@ -46,25 +46,36 @@ def set_rules(world) -> None:
     # Goal: be able to attempt (and therefore, in practice, complete) all 8 biomes. Actual
     # in-game completion is signaled by the mod calling session.SetGoalAchieved() once all
     # 8 levels are truly beaten - this is just the logic-side condition the generator uses
-    # to guarantee the seed is solvable.
-    multiworld.completion_condition[player] = lambda state: state.has_all(level_access_item_names, player)
+    # to guarantee the seed is solvable. Holding every copy of the progressive item implies
+    # every level is individually reachable too (position 7's requirement subsumes all
+    # smaller positions), so this alone is equivalent to the old state.has_all(...) check.
+    multiworld.completion_condition[player] = lambda state: state.has(
+        PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, PROGRESSIVE_LEVEL_ACCESS_COUNT
+    )
 
 
-def _level_access_requirements() -> dict:
+def _level_access_positions() -> dict:
     """
-    level_enum -> ordered list of "Level Access: X" items actually needed to reach and play
-    that level, per LEVEL_UNLOCK_ORDER (the starting level needs none). Shared by every
-    rule-setting function below that gates something tied to a specific level, so they can
-    never disagree with each other about what "reachable" means for a given level.
-    """
-    item_by_level = dict(zip(_LEVEL_ENUMS_IN_DECLARED_ORDER, level_access_item_names))
+    level_enum -> how many copies of PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME are needed to reach
+    and play that level (0 for the starting level, which needs none), per LEVEL_UNLOCK_ORDER.
+    Shared by every rule-setting function below that gates something tied to a specific
+    level, so they can never disagree with each other about what "reachable" means for a
+    given level.
 
-    requirements = {LEVEL_UNLOCK_ORDER[0]: []}
-    required_so_far = []
-    for level_enum in LEVEL_UNLOCK_ORDER[1:]:
-        required_so_far.append(item_by_level[level_enum])
-        requirements[level_enum] = list(required_so_far)
-    return requirements
+    Not one named item per level (that was the original design, replaced after a real report
+    from live play): with 8 distinct "Level Access: X" items, a late-order level's item could
+    (and did) arrive from the multiworld before an earlier one - completely normal for a
+    randomizer, items have no reason to arrive in any particular order - and would just sit
+    in inventory doing nothing until every earlier level's item had also arrived, since
+    reaching it required holding all of them together. That's a real AP grant with zero
+    visible in-game effect, confusing for a player with no visibility into the internal
+    ordering logic. A single progressive item sidesteps this entirely: every copy received
+    always unlocks whichever level is next in the player's own real order, so a grant is
+    never wasted - it just does less some of the time (nothing left to unlock only once
+    you're already caught up to your own progress) rather than doing nothing every time
+    until a specific combination of items has arrived.
+    """
+    return {level_enum: position for position, level_enum in enumerate(LEVEL_UNLOCK_ORDER)}
 
 
 def _set_land_expansion_rules(world) -> None:
@@ -139,10 +150,12 @@ def _set_level_order_rules(world) -> None:
 
     location_by_level = dict(zip(_LEVEL_ENUMS_IN_DECLARED_ORDER, complete_level_location_names))
 
-    for level_enum, needed in _level_access_requirements().items():
+    for level_enum, position in _level_access_positions().items():
         location = multiworld.get_location(location_by_level[level_enum], player)
-        if needed:
-            location.access_rule = lambda state, items=needed: state.has_all(items, player)
+        if position:
+            location.access_rule = lambda state, n=position: state.has(
+                PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, n
+            )
         else:
             location.access_rule = lambda state: True
 
@@ -187,7 +200,7 @@ def _set_blueprint_pool_rules(world) -> None:
     Level Access item) somewhere provably unreachable without it - an unwinnable seed.
 
     Each position ALSO requires actually being able to reach the level it's assigned to
-    this seed (per _level_access_requirements) - a position being first-in-its-chain only
+    this seed (per _level_access_positions) - a position being first-in-its-chain only
     means "no other blueprint needs to be found first", not "reachable from the start of
     the game". Missing this was a real bug (reported live): with level order enforced but
     blueprint locations left ungated, the generator could place a level's own "Level
@@ -198,7 +211,7 @@ def _set_blueprint_pool_rules(world) -> None:
     multiworld = world.multiworld
     player = world.player
 
-    level_access_requirements = _level_access_requirements()
+    level_access_positions = _level_access_positions()
 
     levels = list(BLUEPRINT_POOLS_BY_LEVEL.keys())
     pool = [b for lvl in levels for b in BLUEPRINT_POOLS_BY_LEVEL[lvl]]
@@ -220,15 +233,24 @@ def _set_blueprint_pool_rules(world) -> None:
         cursor += count
         blueprint_order[level_enum] = level_buildings
 
-        level_needed = level_access_requirements.get(level_enum, [])
+        level_position = level_access_positions.get(level_enum, 0)
 
         previous_item = None
         for building_enum in level_buildings:
             loc_name = f"Blueprint: {building_enum_to_display[building_enum]}"
             location = multiworld.get_location(loc_name, player)
-            needed = list(level_needed) + ([previous_item] if previous_item is not None else [])
-            if needed:
-                location.access_rule = lambda state, items=needed: state.has_all(items, player)
+            pos = level_position
+            prev = previous_item
+            if pos and prev is not None:
+                location.access_rule = lambda state, pos=pos, prev=prev: (
+                    state.has(PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, pos) and state.has(prev, player)
+                )
+            elif pos:
+                location.access_rule = lambda state, pos=pos: state.has(
+                    PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, pos
+                )
+            elif prev is not None:
+                location.access_rule = lambda state, prev=prev: state.has(prev, player)
             else:
                 location.access_rule = lambda state: True
             previous_item = loc_name
@@ -250,13 +272,15 @@ def _set_trophy_rules(world) -> None:
     multiworld = world.multiworld
     player = world.player
 
-    level_access_requirements = _level_access_requirements()
+    level_access_positions = _level_access_positions()
 
     for level_enum, building_enum in TROPHY_BUILDING_BY_LEVEL.items():
         loc_name = f"Blueprint: {building_enum_to_display[building_enum]}"
         location = multiworld.get_location(loc_name, player)
-        needed = level_access_requirements.get(level_enum, [])
-        if needed:
-            location.access_rule = lambda state, items=needed: state.has_all(items, player)
+        position = level_access_positions.get(level_enum, 0)
+        if position:
+            location.access_rule = lambda state, n=position: state.has(
+                PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, n
+            )
         else:
             location.access_rule = lambda state: True
