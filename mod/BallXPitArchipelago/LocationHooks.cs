@@ -157,16 +157,19 @@ internal static class UnlockCharLocationPatch
 /// Whether suppressing this building's grant is safe. A level's "undiscovered blueprints"
 /// pool is walked sequentially by SaveMgr.HasBlueprint(bt) - suppressing unconditionally
 /// (the original design) left HasBlueprint permanently false, so vanilla kept re-offering
-/// the *same* blueprint forever instead of progressing (confirmed live). Two categories are
-/// safe to suppress despite that: the 7 remaining Trophy (kXIdol) buildings, since
-/// level-completion trophies are one-time events with no pool to get stuck on; and
+/// the *same* blueprint forever instead of progressing (confirmed live). Three categories
+/// are safe to suppress despite that: the 7 remaining Trophy (kXIdol) buildings, since
+/// level-completion trophies are one-time events with no pool to get stuck on;
 /// BlueprintShuffle's ~62 pool-eligible buildings, now that Rules.py encodes the real
 /// per-level dependency chain (position N needs position N-1's item) so the generator
-/// never places something unreachable behind it. kMoonIdol (Void Trophy) is handled
-/// separately in GainBlueprintLocationPatch, not here - see BlueprintShuffle.cs. Everything
-/// else (CharHousing-only buildings, buildings not in any pool) has no such chain, so it
-/// stays non-suppressing - real grant plus a check layered on top, same as the interim
-/// design.
+/// never places something unreachable behind it; and BlueprintShuffle's CharHousing
+/// buildings (e.g. Cozy Home), also a one-shot-per-character event with no pool to get
+/// stuck in - confirmed live these were being granted for real (a bug, not the intended
+/// design: getting the real Cozy Home from beating a level with a new character, in
+/// addition to an unrelated randomized check reward). kMoonIdol (Void Trophy) is handled
+/// separately in GainBlueprintLocationPatch, not here - see BlueprintShuffle.cs. Buildings
+/// not in any of these three sets (not-yet-tracked ones) still stay non-suppressing - real
+/// grant plus a check layered on top - since there's no evidence suppressing those is safe.
 /// </summary>
 internal static class SuppressibleBuildingTypes
 {
@@ -177,7 +180,10 @@ internal static class SuppressibleBuildingTypes
         BuildingType.kDesertIdol,
     };
 
-    internal static bool Contains(BuildingType bt) => Trophies.Contains(bt) || BlueprintShuffle.PoolEligibleBuildings.Contains(bt);
+    internal static bool Contains(BuildingType bt) =>
+        Trophies.Contains(bt) ||
+        BlueprintShuffle.PoolEligibleBuildings.Contains(bt) ||
+        BlueprintShuffle.CharHousingBuildings.Contains(bt);
 }
 
 [HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.GainBlueprint))]
@@ -234,7 +240,10 @@ internal static class GainBlueprintLocationPatch
 /// Gates which biomes are selectable: vanilla decides via LevelSelectItem.Init (unlocked)
 /// vs InitLocked (locked), so redirecting InitLocked -> Init when the player has received
 /// the matching "Level Access" item is enough to override vanilla's ElevatorLvl-based
-/// unlock decision without needing to touch the elevator/gear economy at all.
+/// unlock decision - PROVIDED vanilla actually calls InitLocked in the first place. See
+/// LevelSelectItemInitPatch below for the other half of this: vanilla picks which of the
+/// two to call based on its own ElevatorLvl state, not ours, so this patch alone only ever
+/// closes the gap in one direction.
 /// </summary>
 [HarmonyPatch(typeof(LevelSelectItem), nameof(LevelSelectItem.InitLocked))]
 internal static class LevelSelectItemInitLockedPatch
@@ -261,10 +270,48 @@ internal static class LevelSelectItemInitLockedPatch
 }
 
 /// <summary>
+/// Symmetric counterpart to LevelSelectItemInitLockedPatch, closing a real bug (confirmed
+/// live): vanilla decides which of Init/InitLocked to call based on its own ElevatorLvl
+/// progress, not on AP-received "Level Access" items - so once real elevator-upgrade
+/// progress (still 100% vanilla, un-suppressed - see RunElevatorUpgradeLocationPatch)
+/// outpaces AP item delivery, vanilla starts calling Init directly for a level whose access
+/// item hasn't actually been received yet, which LevelSelectItemInitLockedPatch never even
+/// sees (it only patches the "locked" call). Reported live: a single early elevator upgrade
+/// granted real, playable access to Snowy with no Level Access item received for it.
+/// Redirecting Init -> InitLocked here whenever AP doesn't yet consider the level reachable
+/// closes the loophole from the other side, regardless of which of the two vanilla decides
+/// to call first.
+/// </summary>
+[HarmonyPatch(typeof(LevelSelectItem), nameof(LevelSelectItem.Init))]
+internal static class LevelSelectItemInitPatch
+{
+    private static bool Prefix(LevelSelectItem __instance, LevelInfo inf, int ngPlus)
+    {
+        if (ApConnection.Session == null)
+            return true;
+
+        if (ngPlus != 0 || inf == null)
+            return true;
+
+        if (LevelUnlockOrder.IsReachable(inf.Type))
+            return true;
+
+        LocationHooks.Log?.Msg(
+            $"LevelSelectItem.Init({inf.Type}): vanilla considers this unlocked but AP doesn't yet - redirecting to InitLocked.");
+
+        __instance.InitLocked(inf, ngPlus);
+        return false;
+    }
+}
+
+/// <summary>
 /// Overrides vanilla's "Undiscovered Blueprints" count on the level-select screen with our
 /// own ground truth (BlueprintShuffle's per-level pending-chain length) - see
 /// BlueprintShuffle.GetRemainingCount for why vanilla's own counter can't be trusted once
 /// items are flowing in from the wider multiworld instead of only from playing that level.
+/// Harmony still runs this Postfix even when LevelSelectItemInitPatch's Prefix redirected
+/// the call to InitLocked instead - the IsReachable recheck here skips it in that case, so
+/// a locked tile never gets a stale "blueprints left" count applied to it.
 /// </summary>
 [HarmonyPatch(typeof(LevelSelectItem), nameof(LevelSelectItem.Init))]
 internal static class LevelSelectItemBlueprintCountPatch
@@ -272,6 +319,9 @@ internal static class LevelSelectItemBlueprintCountPatch
     private static void Postfix(LevelSelectItem __instance, LevelInfo inf, int ngPlus)
     {
         if (ApConnection.Session == null || inf == null || ngPlus != 0)
+            return;
+
+        if (!LevelUnlockOrder.IsReachable(inf.Type))
             return;
 
         var remaining = BlueprintShuffle.GetRemainingCount(inf.Type);
@@ -286,11 +336,12 @@ internal static class LevelSelectItemBlueprintCountPatch
 /// Clicking the elevator to upgrade it stays completely normal vanilla gameplay (earn
 /// gears as usual, spend them here as usual, ElevatorLvl still increments as usual so the
 /// escalating gear costs for later upgrades still work) - it's a Postfix, not a suppressing
-/// Prefix, specifically so none of that changes. The only difference from vanilla is that
-/// the upgrade no longer directly unlocks the next biome (LevelSelectItemInitLockedPatch
-/// already ignores ElevatorLvl entirely and only looks at AP-received "Level Access" items)
-/// - instead it sends a location check, so what you get back is "a random unlock" rather
-/// than always specifically the next biome.
+/// Prefix, specifically so none of that changes. The upgrade itself no longer directly
+/// unlocks the next biome - that's now enforced by BOTH LevelSelectItemInitLockedPatch and
+/// LevelSelectItemInitPatch together (see the latter for why one alone wasn't enough: a
+/// real elevator upgrade like this one can make vanilla call Init directly, which the
+/// InitLocked-only patch never sees). Instead this sends a location check, so what you get
+/// back is "a random unlock" rather than always specifically the next biome.
 /// </summary>
 [HarmonyPatch(typeof(BaseMgr), nameof(BaseMgr.RunElevatorUpgrade))]
 internal static class RunElevatorUpgradeLocationPatch

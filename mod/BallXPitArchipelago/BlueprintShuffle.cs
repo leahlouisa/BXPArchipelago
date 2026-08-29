@@ -65,6 +65,20 @@ internal static class BlueprintShuffle
     private static BuildingInfo _voidTrophyInfo;
     private static BlueprintChainState _chainState;
 
+    /// <summary>
+    /// Every building InfoDB.I.CharHousing ties to a character (e.g. vanilla's Sheriff's
+    /// Office -> Itchy Finger), populated once CharHousing is available - independent of
+    /// whether ApplyCharHousingOnce has actually shuffled the mapping yet, since membership
+    /// in this set doesn't change across the shuffle, only which character each one maps to.
+    /// GainBlueprintLocationPatch uses this to suppress these grants: confirmed live (a
+    /// player got a real, un-suppressed Cozy Home from beating a level with a new character)
+    /// that these are safe to suppress the same way Trophies are - each is a one-shot
+    /// per-character event, not a sequentially-walked pool a suppressed grant could get
+    /// permanently stuck in (that risk is specific to BlueprintsByLevel's "skip
+    /// already-owned" walk, which CharHousing has no equivalent of).
+    /// </summary>
+    internal static readonly HashSet<BuildingType> CharHousingBuildings = new();
+
     /// <summary>Per-level queue of buildings still to be offered (canonical location name is derived at send time).</summary>
     private static readonly Dictionary<LevelType, Queue<BuildingType>> _pending = new();
 
@@ -371,6 +385,7 @@ internal static class BlueprintShuffle
                 continue;
             indices.Add(i);
             entries.Add(charHousing[i]);
+            CharHousingBuildings.Add(charHousing[i].Type);
         }
 
         if (indices.Count == 0)
