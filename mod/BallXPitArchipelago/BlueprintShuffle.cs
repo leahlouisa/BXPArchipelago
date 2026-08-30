@@ -185,18 +185,33 @@ internal static class BlueprintShuffle
         // A level whose BlueprintsByLevel entry is still null (not yet lazily populated by
         // the game - confirmed live: happens for a level unlocked for the first time ever,
         // if this method's one-shot run happens to fire before that biome has ever been
-        // loaded into) must retry the WHOLE method later rather than silently giving up on
-        // just that level forever. _applied only ever checks "did at least one level
-        // succeed", so without this, a level whose list wasn't ready at this exact moment
-        // would never get a real entry in _pending for the rest of the session - matching a
-        // real report live (Heaven's "N blueprints remaining" never appeared, and playing it
-        // never offered anything, despite the seed having real content queued for it).
+        // loaded into) must retry later rather than silently giving up on just that level
+        // forever. _applied only ever checks "did at least one level succeed", so without
+        // this, a level whose list wasn't ready at this exact moment would never get a real
+        // entry in _pending for the rest of the session - matching a real report live
+        // (Heaven's "N blueprints remaining" never appeared, and playing it never offered
+        // anything, despite the seed having real content queued for it).
+        //
+        // Critically, a level already present in _pending must be SKIPPED here, not
+        // reprocessed - this method gets called again every Mod.OnUpdate() tick for as long
+        // as ANY level (e.g. one you simply haven't visited yet, like a still-unvisited
+        // final level) remains not-ready, and this loop runs the real InfoDB.I.BlueprintsByLevel
+        // mutation (strip + insert a placeholder). Without this guard, an already-succeeded
+        // level would get ANOTHER placeholder inserted on every single retry - confirmed
+        // live as a real, serious bug (not theoretical): roughly a thousand duplicate
+        // placeholders piled up in one level's list over a 9-minute session where a
+        // different, unvisited level kept the retry loop alive, which corrupted that
+        // level's real blueprint-reward flow badly enough that killing a boss there showed
+        // the reward splash but never actually completed the underlying grant.
         var anyLevelNotReady = false;
 
         foreach (var pair in newPending)
         {
             var levelType = pair.Key;
             var queue = pair.Value;
+
+            if (_pending.ContainsKey(levelType))
+                continue; // already successfully applied in an earlier attempt.
 
             var idx = (int)levelType;
             if (idx < 0 || idx >= byLevel.Length)
