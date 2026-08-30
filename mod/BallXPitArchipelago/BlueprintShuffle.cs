@@ -182,6 +182,17 @@ internal static class BlueprintShuffle
             return;
         }
 
+        // A level whose BlueprintsByLevel entry is still null (not yet lazily populated by
+        // the game - confirmed live: happens for a level unlocked for the first time ever,
+        // if this method's one-shot run happens to fire before that biome has ever been
+        // loaded into) must retry the WHOLE method later rather than silently giving up on
+        // just that level forever. _applied only ever checks "did at least one level
+        // succeed", so without this, a level whose list wasn't ready at this exact moment
+        // would never get a real entry in _pending for the rest of the session - matching a
+        // real report live (Heaven's "N blueprints remaining" never appeared, and playing it
+        // never offered anything, despite the seed having real content queued for it).
+        var anyLevelNotReady = false;
+
         foreach (var pair in newPending)
         {
             var levelType = pair.Key;
@@ -189,11 +200,14 @@ internal static class BlueprintShuffle
 
             var idx = (int)levelType;
             if (idx < 0 || idx >= byLevel.Length)
-                continue;
+                continue; // structural mismatch, not a timing issue - retrying won't help.
 
             var list = byLevel[idx];
             if (list == null)
+            {
+                anyLevelNotReady = true;
                 continue;
+            }
 
             for (var j = list.Count - 1; j >= 0; j--)
                 if (list[j] != null && newPoolEligible.Contains(list[j].Type))
@@ -202,6 +216,12 @@ internal static class BlueprintShuffle
             _pending[levelType] = queue;
             if (queue.Count > 0)
                 list.Insert(0, _voidTrophyInfo);
+        }
+
+        if (anyLevelNotReady)
+        {
+            LocationHooks.Log?.Warning("[BlueprintShuffle] At least one level's BlueprintsByLevel entry isn't populated yet - will retry.");
+            return;
         }
 
         // InfoDB.I.BossDropBlueprints and .FuserDropBlueprints are separate, GLOBAL (not
