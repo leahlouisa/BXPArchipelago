@@ -136,6 +136,14 @@ internal static class BlueprintShuffle
             LocationHooks.Log?.Msg($"[BlueprintShuffle] New seed detected for blueprint chain progress (was '{_chainState.SeedName}', now '{seedName}') - resetting.");
             _chainState.SeedName = seedName;
             _chainState.ConsumedByLevel.Clear();
+
+            // Flush immediately rather than waiting for the next MarkConsumed - otherwise,
+            // if nothing gets consumed yet this session (confirmed live: a real bug once
+            // silently prevented it for an entire session), the file never gets written at
+            // all, and a relaunch has nothing to compare against - looking exactly like a
+            // fresh seed again even though it's the same one, discarding no real progress
+            // only because none had been recorded yet, but masking that anything is wrong.
+            _chainState.Save();
         }
 
         // Two passes: first parse every level's queue and the full global set of buildings

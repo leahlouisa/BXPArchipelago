@@ -51,6 +51,7 @@ Important: this expects your own legitimate copy of Ball X Pit on Steam.
     - `Archipelago.MultiClient.Net.dll` and `Newtonsoft.Json.dll` go in your game's `UserLibs` folder.
 - Launch the game again - a connect box will appear on screen. Enter your Archipelago server's host/port, your slot name, and password (if any), then connect.
 - To uninstall, delete `BallXPitArchipelago.dll` from `Mods` (and the two dependency DLLs from `UserLibs`, if nothing else in your mod setup needs them).
+- **Updating to a new version**: only replace the DLLs above - don't delete or wipe the whole `Mods`/`UserLibs` folders. Your connection settings and per-seed progress (which blueprint chain positions you've already found) live in `UserData/BallXPitArchipelago.*` instead, specifically so a routine DLL update can't accidentally wipe them.
 
 ### SteamOS / Steam Deck (via Proton)
 

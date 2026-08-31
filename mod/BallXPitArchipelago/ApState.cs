@@ -1,4 +1,4 @@
-using System.Reflection;
+using MelonLoader.Utils;
 using Newtonsoft.Json;
 
 namespace BallXPitArchipelago;
@@ -16,9 +16,11 @@ public class ApState
 
     private static string PathFor(string slot)
     {
-        var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+        // MelonLoader's UserData folder, not next to the DLL in Mods\ - see ApConfig.cs's
+        // ConfigPath for why (a mod update commonly wipes the Mods folder, which would
+        // otherwise destroy this progress-tracking file - confirmed live).
         var safeSlot = string.Concat(slot.Split(Path.GetInvalidFileNameChars()));
-        return Path.Combine(dir, $"BallXPitArchipelago.{safeSlot}.state.json");
+        return Path.Combine(MelonEnvironment.UserDataDirectory, $"BallXPitArchipelago.{safeSlot}.state.json");
     }
 
     public static ApState Load(string slot)

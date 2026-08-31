@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using System.Reflection;
+using MelonLoader.Utils;
 using Newtonsoft.Json;
 
 namespace BallXPitArchipelago;
@@ -27,9 +27,13 @@ public class BlueprintChainState
 
     private static string PathFor(string slot)
     {
-        var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
+        // MelonLoader's UserData folder, not next to the DLL in Mods\ - see ApConfig.cs's
+        // ConfigPath for why (a mod update commonly wipes the Mods folder, which would
+        // otherwise destroy this progress-tracking file - confirmed live: exactly this
+        // deleted a player's blueprint-chain progress on every DLL update, making every
+        // relaunch look like a brand-new seed with nothing ever consumed).
         var safeSlot = string.Concat(slot.Split(Path.GetInvalidFileNameChars()));
-        return Path.Combine(dir, $"BallXPitArchipelago.{safeSlot}.blueprintchain.json");
+        return Path.Combine(MelonEnvironment.UserDataDirectory, $"BallXPitArchipelago.{safeSlot}.blueprintchain.json");
     }
 
     public static BlueprintChainState Load(string slot)

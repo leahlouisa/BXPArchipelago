@@ -1,5 +1,5 @@
-using System.Reflection;
 using MelonLoader;
+using MelonLoader.Utils;
 using Newtonsoft.Json;
 
 namespace BallXPitArchipelago;
@@ -21,8 +21,12 @@ public class ApConfig
     {
         get
         {
-            var dir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? ".";
-            return Path.Combine(dir, "BallXPitArchipelago.json");
+            // MelonLoader's UserData folder, not next to the DLL in Mods\ - a mod update is
+            // commonly installed by wiping the Mods folder and extracting a fresh zip into
+            // it, which would silently destroy anything stored alongside the DLL there
+            // (confirmed live: exactly this happened to BlueprintChainState/ApState's
+            // progress-tracking files, forcing this move).
+            return Path.Combine(MelonEnvironment.UserDataDirectory, "BallXPitArchipelago.json");
         }
     }
 
