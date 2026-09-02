@@ -12,11 +12,8 @@
    finishes setting itself up.
 2. Install the BallXPitArchipelago mod DLL and its dependencies as described in the
    project README.
-3. Launch the game once with the mod installed - it will write a config file
-   (`Mods\BallXPitArchipelago.json`) next to the mod DLL.
-4. Edit that file with your Archipelago server's host, port, your slot name, and password
-   (if any).
-5. Launch the game again to connect.
+3. Launch the game - a connect box will appear on screen. Enter your Archipelago server's
+   host/port, your slot name, and password (if any), then connect.
 
 ## What Gets Randomized
 

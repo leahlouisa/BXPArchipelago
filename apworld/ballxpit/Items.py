@@ -6,6 +6,7 @@ from typing import Dict
 from BaseClasses import Item, ItemClassification
 
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL
+from .CharHousing import CHAR_HOUSING_NONPOOLED
 
 _POOLED_BUILDING_ENUMS = {b for pool in BLUEPRINT_POOLS_BY_LEVEL.values() for b in pool}
 
@@ -49,12 +50,41 @@ class ItemData:
 
 item_table: Dict[str, ItemData] = {}
 
-# Characters aren't required by any access rule in this world (nothing about reaching a
-# location or the goal depends on having a specific character - the game's own
-# resource/skill requirements aren't modeled), so they're "useful" rather than
-# "progression": nice to receive, not logically load-bearing.
+# Most characters aren't required by any access rule (nothing about reaching a location or
+# the goal depends on having a SPECIFIC character - the game's own resource/skill
+# requirements aren't modeled), so they're "useful" rather than "progression": nice to
+# receive, not logically load-bearing.
+#
+# kInfluencer (The Influencer / The False Messiah) is deliberately excluded: vanilla unlocks
+# it only via Twitch Extension integration (linking a Twitch account, audience voting on
+# events), not through any earnable progression. Randomizing it would force players to
+# engage with that system to get a "real" unlock, which the user explicitly doesn't want -
+# so it's left completely untouched, same as vanilla, with no item and no location.
+#
+# 5 of the 21 ARE progression, though (user caught this gap live, then confirmed the exact
+# mechanism from real play experience): Elevator Upgrade locations require having played
+# with more than just the starting character - gears for a given upgrade can ONLY be earned
+# in the one specific preceding level (not farmed from any already-unlocked level - e.g. the
+# final upgrade's 5 gears can only come from beating Clouds, never from replaying
+# Graveyard), so the final upgrade genuinely needs 4 received characters (5 total, including
+# the always-free starting one) per the wiki's escalating cost schedule - this is an exact
+# requirement, not an approximation. See Rules.py's _set_elevator_upgrade_rules for the full
+# reasoning - it gates on state.has_from_list(character_item_names, player, K), which only
+# the fill algorithm can honor if at least K of the 21 are guaranteed reachable via
+# progression placement. Which 5 doesn't matter (nothing else distinguishes them) - 4 needed
+# + 1 margin, matching this apworld's established practice of shipping a small buffer above
+# exact break-even (see _set_land_expansion_rules).
+_ELEVATOR_GATING_CHARACTER_ENUMS = {"kRecaller", "kItchyFinger", "kTunneller", "kTiptoer", "kCogitator"}
+
 for _c in _game_data["characters"]:
-    item_table[f"Character: {_c['display']}"] = ItemData(_c["id"], ItemClassification.useful)
+    if _c["enum"] == "kInfluencer":
+        continue
+    _char_classification = (
+        ItemClassification.progression
+        if _c["enum"] in _ELEVATOR_GATING_CHARACTER_ENUMS
+        else ItemClassification.useful
+    )
+    item_table[f"Character: {_c['display']}"] = ItemData(_c["id"], _char_classification)
 
 # Blueprints in BLUEPRINT_POOLS_BY_LEVEL are progression, not useful: Rules.py chains each
 # level's pool into a dependency ladder (position N requires position N-1's item, since the
@@ -62,12 +92,21 @@ for _c in _game_data["characters"]:
 # algorithm only guarantees progression items are placed early enough to satisfy logic that
 # depends on them - useful items are placed in a later, unconstrained pass that doesn't
 # respect access rules. Getting this wrong causes real generation failures (confirmed: it
-# did, before this fix). Everything else (Trophies, CharHousing-only buildings, buildings
-# not in any pool) has no chain depending on it, so those stay useful.
+# did, before this fix).
+#
+# The 11 CharHousing-only buildings (CHAR_HOUSING_NONPOOLED - never part of any level's
+# pool) are ALSO progression, for the exact same reason: Rules.py's _set_char_housing_rules
+# gates each "Character: X" location on receiving the matching "Blueprint: <building>" item,
+# so that item needs the same placement guarantee. Confirmed live (real
+# ArchipelagoGenerate.exe run) that leaving these as `useful` fails generation outright -
+# "Could not access required locations for accessibility check" for exactly these 11
+# characters - since a `useful` item's own placement isn't accessibility-verified, so
+# nothing can safely depend on it being reachable. Trophies and any other building not in
+# either set has no chain depending on it, so those stay useful.
 for _b in _game_data["buildings"]:
     _classification = (
         ItemClassification.progression
-        if _b["enum"] in _POOLED_BUILDING_ENUMS
+        if _b["enum"] in _POOLED_BUILDING_ENUMS or _b["enum"] in CHAR_HOUSING_NONPOOLED
         else ItemClassification.useful
     )
     item_table[f"Blueprint: {_b['display']}"] = ItemData(_b["id"], _classification)
@@ -91,13 +130,26 @@ item_table[PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME] = ItemData(
     PROGRESSIVE_LEVEL_ACCESS_ITEM_ID, ItemClassification.progression
 )
 
-character_item_names = [f"Character: {c['display']}" for c in _game_data["characters"]]
+character_item_names = [
+    f"Character: {c['display']}" for c in _game_data["characters"] if c["enum"] != "kInfluencer"
+]
 blueprint_item_names = [f"Blueprint: {b['display']}" for b in _game_data["buildings"]]
 
 # BuildingType enum token -> display name, needed to translate BlueprintPools.py's enum
-# tokens (ground truth captured from the mod's own debug logging) into real item/location
-# names.
+# tokens (ground truth captured from the mod's own debug logging) into real item names -
+# items always keep their real building name, even where the matching location has been
+# renamed positionally (see Locations.py/Rules.py).
 building_enum_to_display = {b["enum"]: b["display"] for b in _game_data["buildings"]}
+
+# BuildingType enum token -> numeric id, needed by Locations.py to give a positionally-named
+# location the same id its building has always had (only the display string moves, not the
+# id - so this doesn't disturb the frozen id registry game_data.json's header describes).
+building_enum_to_id = {b["enum"]: b["id"] for b in _game_data["buildings"]}
+
+# CharType enum token -> display name, needed by Rules.py to gate each "Character: X"
+# location on the matching housing blueprint (see CharHousing.py/Rules.py's
+# _set_char_housing_rules) without hand-duplicating the character name table again.
+character_enum_to_display = {c["enum"]: c["display"] for c in _game_data["characters"]}
 
 # Buildings nudged toward early placement (soft bias via World.generate_early - not a
 # guarantee, the fill algorithm can still push one later if other constraints crowd it out)

@@ -74,8 +74,9 @@ public static class ApConnection
         // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyFromSlotData()
         // the same way ItemReceiver retries pending items, so a no-op here just means it
         // applies a little later instead of failing.
+        BlueprintShuffle.ApplyLocationNameOverrides(success.SlotData);
         BlueprintShuffle.ApplyFromSlotData(success.SlotData, config.Slot, session.RoomState.Seed);
-        BlueprintShuffle.ApplyCharHousingOnce(session.RoomState.Seed);
+        BlueprintShuffle.PopulateCharHousingBuildings();
         LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
 
         // No session.Items.ItemReceived subscription: that event fires on the network

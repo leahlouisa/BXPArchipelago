@@ -1,8 +1,21 @@
 from BaseClasses import ItemClassification, LocationProgressType
 
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL, TROPHY_BUILDING_BY_LEVEL
-from .Items import PROGRESSIVE_LEVEL_ACCESS_COUNT, PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, building_enum_to_display
-from .Locations import complete_level_location_names, land_expansion_location_names
+from .CharHousing import CHAR_HOUSING, CHAR_HOUSING_HOME_LEVEL_GUESS, CHAR_HOUSING_NONPOOLED
+from .Items import (
+    PROGRESSIVE_LEVEL_ACCESS_COUNT,
+    PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME,
+    building_enum_to_display,
+    character_enum_to_display,
+    character_item_names,
+)
+from .Locations import (
+    blueprint_pool_location_names,
+    char_housing_location_names,
+    complete_level_location_names,
+    elevator_upgrade_location_names,
+    land_expansion_location_names,
+)
 
 # Declared order in game_data.json's "levels" array (== LevelType enum declaration order,
 # also the order complete_level_location_names comes in) - NOT the real intended difficulty
@@ -24,6 +37,11 @@ LEVEL_UNLOCK_ORDER = [
     "kGraveyard", "kSnowy", "kDesert", "kShroom", "kSavanna", "kHell", "kClouds", "kMoon",
 ]
 
+# Escalating gear cost for each Elevator Upgrade, in TOTAL distinct characters needed
+# (including the always-owned starting character) - read off the wiki's level list, matches
+# ELEVATOR_UPGRADE_COUNT's comment in Items.py. Index 0 is Elevator Upgrade #1.
+_ELEVATOR_UPGRADE_TOTAL_CHARACTERS = [2, 2, 2, 3, 4, 4, 5]
+
 
 def set_rules(world) -> None:
     multiworld = world.multiworld
@@ -31,17 +49,21 @@ def set_rules(world) -> None:
 
     _set_level_order_rules(world)
 
-    # "Land Expansion #n" and "Elevator Upgrade #n" locations have no access rule: purchases
-    # are unrestricted vanilla, not gated on any received item - see
-    # ConfirmExpansionLocationPatch in the mod. Whether a player can actually reach #n
-    # in-game depends on the vanilla resource economy, which isn't modeled in logic. These
-    # two aren't tied to any specific level either (elevator progress and land purchases are
-    # earned/spent across the whole game, not gated behind one particular biome), so unlike
-    # blueprint and trophy locations below, they genuinely don't need level-access gating.
+    # "Land Expansion #n" locations have no access rule: purchases are unrestricted vanilla,
+    # gold-gated only, and not tied to any specific level - purchases happen across the whole
+    # game, not behind one particular biome (see ConfirmExpansionLocationPatch in the mod).
+    # Whether a player can actually AFFORD #n depends on the vanilla resource economy, which
+    # isn't modeled in logic, same reasoning "Elevator Upgrade #n" locations used to share
+    # here - except that reasoning doesn't actually hold for Elevator Upgrade (a real gap,
+    # caught by the user: reaching upgrade #n genuinely does require already being able to
+    # play a specific preceding level, and funding its escalating gear cost) - see
+    # _set_elevator_upgrade_rules below for its own real gating.
 
     _set_land_expansion_rules(world)
     _set_blueprint_pool_rules(world)
     _set_trophy_rules(world)
+    _set_char_housing_rules(world)
+    _set_elevator_upgrade_rules(world)
 
     # Goal: be able to attempt (and therefore, in practice, complete) all 8 biomes. Actual
     # in-game completion is signaled by the mod calling session.SetGoalAchieved() once all
@@ -181,14 +203,17 @@ def _set_blueprint_pool_rules(world) -> None:
     decoupling "does vanilla still have something to offer this level" from "what item did
     the player happen to receive and when."
 
-    That decoupling is also why positions no longer need to match each level's original
-    vanilla count or which buildings vanilla originally put there: the pool below is the
-    full flat set of every real, confirmed-live building across all 8 levels, and this
-    function randomly re-partitions it per seed (every level guaranteed at least one
-    position, the remainder handed out one at a time) - "5 in Boneyard, 16 in Snowy" is a
-    legitimate possible seed. Exported via fill_slot_data() and applied by the mod at
-    connect time, rather than the mod computing its own order or partition, specifically
-    so the two can never fall out of sync.
+    As of the "major design reconsideration" redesign (see project memory), this no longer
+    reshuffles buildings across levels or randomizes each level's position count - both
+    caused real, confirmed player confusion, since a hint naming a building's real name
+    (e.g. "Blueprint: Campground") no longer told a player anything true about vanilla play
+    once cross-level pooling could put it anywhere. BLUEPRINT_POOLS_BY_LEVEL is now used
+    exactly as captured: each level's real vanilla composition, count, and discovery order,
+    completely fixed - only what item ends up behind each position is randomized, which is
+    just normal AP fill, not anything this function computes. Still exported via
+    fill_slot_data() (as world.blueprint_order) rather than letting the mod hardcode its own
+    copy of BLUEPRINT_POOLS_BY_LEVEL, so the two can never silently drift out of sync if one
+    side is edited without the other.
 
     Confirmed live (see project memory) that vanilla's own "next undiscovered blueprint
     for this level" logic walks each level's pool sequentially by position, skipping
@@ -200,45 +225,30 @@ def _set_blueprint_pool_rules(world) -> None:
     Level Access item) somewhere provably unreachable without it - an unwinnable seed.
 
     Each position ALSO requires actually being able to reach the level it's assigned to
-    this seed (per _level_access_positions) - a position being first-in-its-chain only
-    means "no other blueprint needs to be found first", not "reachable from the start of
-    the game". Missing this was a real bug (reported live): with level order enforced but
-    blueprint locations left ungated, the generator could place a level's own "Level
-    Access" item behind a blueprint location in a level that isn't reachable without that
-    exact item - or one further down LEVEL_UNLOCK_ORDER, needing even more - an
-    unreachable, circular requirement the generator had no way to know to avoid.
+    (per _level_access_positions) - a position being first-in-its-chain only means "no
+    other blueprint needs to be found first", not "reachable from the start of the game".
+    Missing this was a real bug (reported live): with level order enforced but blueprint
+    locations left ungated, the generator could place a level's own "Level Access" item
+    behind a blueprint location in a level that isn't reachable without that exact item -
+    or one further down LEVEL_UNLOCK_ORDER, needing even more - an unreachable, circular
+    requirement the generator had no way to know to avoid.
     """
     multiworld = world.multiworld
     player = world.player
 
     level_access_positions = _level_access_positions()
 
-    levels = list(BLUEPRINT_POOLS_BY_LEVEL.keys())
-    pool = [b for lvl in levels for b in BLUEPRINT_POOLS_BY_LEVEL[lvl]]
-
-    shuffled = list(pool)
-    world.random.shuffle(shuffled)
-
-    # Every level starts with a guaranteed 1 position, then the rest of the pool is handed
-    # out one building at a time to a randomly chosen level - counts end up varying a lot
-    # seed to seed rather than mirroring each level's original vanilla size.
-    counts = [1] * len(levels)
-    for _ in range(len(shuffled) - len(levels)):
-        counts[world.random.randrange(len(levels))] += 1
-
     blueprint_order = {}
-    cursor = 0
-    for level_enum, count in zip(levels, counts):
-        level_buildings = shuffled[cursor:cursor + count]
-        cursor += count
-        blueprint_order[level_enum] = level_buildings
+    for level_enum, level_buildings in BLUEPRINT_POOLS_BY_LEVEL.items():
+        blueprint_order[level_enum] = list(level_buildings)
 
         level_position = level_access_positions.get(level_enum, 0)
 
         previous_item = None
         for building_enum in level_buildings:
-            loc_name = f"Blueprint: {building_enum_to_display[building_enum]}"
+            loc_name = blueprint_pool_location_names[building_enum]
             location = multiworld.get_location(loc_name, player)
+            item_name = f"Blueprint: {building_enum_to_display[building_enum]}"
             pos = level_position
             prev = previous_item
             if pos and prev is not None:
@@ -253,7 +263,7 @@ def _set_blueprint_pool_rules(world) -> None:
                 location.access_rule = lambda state, prev=prev: state.has(prev, player)
             else:
                 location.access_rule = lambda state: True
-            previous_item = loc_name
+            previous_item = item_name
 
     # Read back by fill_slot_data() - the mod applies this exact order rather than
     # recomputing its own, so generation-time logic and runtime behavior can never diverge.
@@ -284,3 +294,97 @@ def _set_trophy_rules(world) -> None:
             )
         else:
             location.access_rule = lambda state: True
+
+
+def _set_char_housing_rules(world) -> None:
+    """
+    Resolves a real, previously-unfixed gap (see project memory): "Character: X" locations
+    had NO access rule at all before this - any location, anywhere, could hold a critical
+    item another player needed, with the generator believing it was reachable from turn one.
+    In reality every character unlock is downstream of actually receiving and building the
+    matching housing blueprint (UnlockCharLocationPatch only ever fires once vanilla decides
+    to call SaveMgr.UnlockChar for real, which itself only happens once the housing building
+    is constructed - see LocationHooks.cs) - so "Character: X" is reachable exactly when
+    "Blueprint: <that building>" has been received, for both pooled and non-pooled housing
+    buildings alike, since the underlying logic is identical either way.
+
+    Separately, the 11 CharHousing buildings confirmed NOT part of any level's normal pool
+    (CHAR_HOUSING_NONPOOLED - see CharHousing.py) get their own location marked
+    LocationProgressType.EXCLUDED, regardless of whether a home-level guess exists for them:
+    two live-verification attempts this session both failed to confirm their real trigger or
+    timing (SaveMgr.HasBlueprint throws for all 11, and their flavor text names no level), so
+    there's no way to encode a real, trustworthy access_rule for them - EXCLUDED keeps
+    progression items out of an unpredictable-timing location without needing one. Where a
+    wiki-sourced home level exists (CHAR_HOUSING_HOME_LEVEL_GUESS, not live-confirmed - see
+    that file's header comment) it's still applied as a SOFT access_rule (gates on that
+    level's Progressive Level Access position) purely for hinting/flavor - if the guess turns
+    out wrong, at worst a hint points to the wrong biome, since EXCLUDED already prevents it
+    from ever threatening completability either way.
+    """
+    multiworld = world.multiworld
+    player = world.player
+
+    level_access_positions = _level_access_positions()
+
+    for char_enum, building_enum in CHAR_HOUSING.items():
+        char_loc_name = f"Character: {character_enum_to_display[char_enum]}"
+        item_name = f"Blueprint: {building_enum_to_display[building_enum]}"
+        location = multiworld.get_location(char_loc_name, player)
+        location.access_rule = lambda state, item_name=item_name: state.has(item_name, player)
+
+    for building_enum in CHAR_HOUSING_NONPOOLED:
+        loc_name = char_housing_location_names[building_enum]
+        location = multiworld.get_location(loc_name, player)
+        location.progress_type = LocationProgressType.EXCLUDED
+
+        level_enum = CHAR_HOUSING_HOME_LEVEL_GUESS.get(building_enum)
+        position = level_access_positions.get(level_enum, 0) if level_enum else 0
+        if position:
+            location.access_rule = lambda state, n=position: state.has(
+                PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, n
+            )
+        else:
+            location.access_rule = lambda state: True
+
+
+def _set_elevator_upgrade_rules(world) -> None:
+    """
+    Elevator Upgrade #n locations previously had NO access rule at all - a real gap the user
+    caught by reasoning through the mechanic, not something found via live testing. Reaching
+    upgrade #n requires already being able to play the preceding level (position n-1 in
+    LEVEL_UNLOCK_ORDER - #1 needs only the always-unlocked starting level, position 0, so no
+    rule at all there) AND having funded its escalating gear cost, which in practice means
+    having played with more than just the starting character.
+
+    The level-position half is exact, same mechanism as every other level-tied location in
+    this file. The character-count half is ALSO an exact model, not just a conservative
+    approximation (confirmed directly by the user, who has played this extensively): gears
+    for upgrade #n can only be earned in the ONE specific preceding level, not farmed from
+    any already-unlocked level - e.g. the 5 gears for the final upgrade (unlocking Vast Void)
+    can only come from beating Clouds, never from replaying Graveyard. So "K distinct
+    characters received" really is the real prerequisite, not a loose stand-in for it -
+    state.has_from_list(character_item_names, player, K), K being the wiki's real
+    gear-cost-in-characters schedule (_ELEVATOR_UPGRADE_TOTAL_CHARACTERS) minus the 1 free
+    starting character. (What AP's logic still doesn't and can't model is the player actually
+    spending the time to beat that level K times, once per character - same gap every other
+    location in this file already has: logic tracks "do you have the tools", not "did you do
+    the objective".) 5 of the 21 character items are marked progression in Items.py
+    specifically so the fill algorithm can actually guarantee this rule is satisfiable, not
+    just logically correct.
+    """
+    multiworld = world.multiworld
+    player = world.player
+
+    for n, loc_name in enumerate(elevator_upgrade_location_names, start=1):
+        location = multiworld.get_location(loc_name, player)
+        level_pos = n - 1
+        chars_needed = _ELEVATOR_UPGRADE_TOTAL_CHARACTERS[n - 1] - 1
+
+        def rule(state, level_pos=level_pos, chars_needed=chars_needed):
+            if level_pos and not state.has(PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, level_pos):
+                return False
+            if chars_needed and not state.has_from_list(character_item_names, player, chars_needed):
+                return False
+            return True
+
+        location.access_rule = rule

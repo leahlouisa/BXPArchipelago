@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using Il2Cpp;
 using MelonLoader;
 using Newtonsoft.Json.Linq;
@@ -49,14 +47,20 @@ namespace BallXPitArchipelago;
 /// Harmony prefix, i.e. still inside vanilla's own call stack, and mutating the list vanilla
 /// is mid-call on risks a "collection modified" exception.
 ///
-/// Also shuffles InfoDB.I.CharHousing, the separate mapping from character to the housing
-/// building that unlocks them (e.g. vanilla always ties Sheriff's Office -> Itchy Finger) -
-/// confirmed live that completing a housing building's character-unlock reads this table
-/// directly, independent of the BlueprintsByLevel reveal-cursor split entirely. This one
-/// stays mod-computed (not generation-time) since it has no bearing on completability -
-/// Character locations/items are unaffected either way (UnlockCharLocationPatch already
-/// suppresses unconditionally, regardless of which building CharHousing ties to a
-/// character), so there's no dependency chain to encode.
+/// Also reads (but as of the "major design reconsideration" redesign - see project memory -
+/// no longer shuffles) InfoDB.I.CharHousing, the separate mapping from character to the
+/// housing building that unlocks them (e.g. vanilla always ties Sheriff's Office -> Itchy
+/// Finger) - confirmed live that completing a housing building's character-unlock reads this
+/// table directly, independent of the BlueprintsByLevel reveal-cursor split entirely.
+/// PopulateCharHousingBuildings just records which buildings are CharHousing-tied (needed by
+/// LocationHooks.cs's SuppressibleBuildingTypes) without touching the real vanilla mapping -
+/// randomizing which building unlocks which character was a genuinely separate,
+/// uncoordinated layer of randomization on top of the generator's own item/location fill,
+/// and produced the same hint-confusion problem this whole redesign exists to fix (a hint
+/// naming a real building no longer told a player anything true about which character it
+/// would unlock). Rules.py's _set_char_housing_rules now gates each "Character: X" location
+/// on the matching real "Blueprint: <building>" item instead, resolving the access-rule gap
+/// that used to exist here without needing any mod-side computation at all.
 /// </summary>
 internal static class BlueprintShuffle
 {
@@ -105,6 +109,40 @@ internal static class BlueprintShuffle
     /// but this keeps "one trigger, one outcome" true even if that assumption is ever wrong.
     /// </summary>
     internal static readonly HashSet<BuildingType> PoolEligibleBuildings = new();
+
+    private static bool _locationNameOverridesApplied;
+
+    /// <summary>
+    /// building -> real location name, for the buildings whose location isn't simply
+    /// "Blueprint: {display}" - see LocationNameFor. Populated once from slot data's
+    /// "blueprint_location_names" (Rules.py/Locations.py's positional-naming redesign -
+    /// items always keep their real name, but pooled and CharHousing-only blueprint
+    /// LOCATIONS are positionally named, e.g. "Boneyard pooled blueprint #3").
+    /// </summary>
+    private static readonly Dictionary<BuildingType, string> LocationNameOverrides = new();
+
+    /// <summary>Call from Mod.OnUpdate() alongside the other slot-data-driven applies.</summary>
+    internal static void ApplyLocationNameOverrides(Dictionary<string, object> slotData)
+    {
+        if (_locationNameOverridesApplied || slotData == null)
+            return;
+
+        if (!slotData.TryGetValue("blueprint_location_names", out var raw) || raw is not JObject overrides)
+            return;
+
+        foreach (var prop in overrides.Properties())
+        {
+            if (Enum.TryParse<BuildingType>(prop.Name, out var bt))
+                LocationNameOverrides[bt] = prop.Value.ToString();
+        }
+
+        _locationNameOverridesApplied = true;
+        LocationHooks.Log?.Msg($"[BlueprintShuffle] Loaded {LocationNameOverrides.Count} positional blueprint location name overrides from slot data.");
+    }
+
+    /// <summary>The real location name to send a check for when vanilla grants this building.</summary>
+    internal static string LocationNameFor(BuildingType bt) =>
+        LocationNameOverrides.TryGetValue(bt, out var name) ? name : $"Blueprint: {GameNames.BuildingDisplay(bt)}";
 
     internal static void ApplyFromSlotData(Dictionary<string, object> slotData, string slot, string seedName)
     {
@@ -290,7 +328,7 @@ internal static class BlueprintShuffle
         }
 
         var bt = queue.Dequeue();
-        LocationHooks.SendCheck($"Blueprint: {GameNames.BuildingDisplay(bt)}");
+        LocationHooks.SendCheck(LocationNameFor(bt));
         _needsRefresh.Add(level.Value);
         MarkConsumed(level.Value, bt);
     }
@@ -411,46 +449,38 @@ internal static class BlueprintShuffle
         return false;
     }
 
-    internal static void ApplyCharHousingOnce(string apSeed)
+    /// <summary>
+    /// Records which buildings are CharHousing-tied (LocationHooks.cs's
+    /// SuppressibleBuildingTypes needs this to know it's safe to suppress them - one-shot
+    /// per-character events, no sequential pool to get stuck in). Deliberately does NOT
+    /// touch the real vanilla character->building mapping any more - see this class's doc
+    /// comment for why the old runtime shuffle was reverted.
+    /// </summary>
+    internal static void PopulateCharHousingBuildings()
     {
-        if (_charHousingApplied || InfoDB.I == null || string.IsNullOrEmpty(apSeed))
+        if (_charHousingApplied || InfoDB.I == null)
             return;
 
         var charHousing = InfoDB.I.CharHousing;
         if (charHousing == null)
             return;
 
-        var indices = new List<int>();
-        var entries = new List<BuildingInfo>();
+        var found = 0;
         for (var i = 0; i < charHousing.Length; i++)
         {
             if (charHousing[i] == null)
                 continue;
-            indices.Add(i);
-            entries.Add(charHousing[i]);
             CharHousingBuildings.Add(charHousing[i].Type);
+            found++;
         }
 
-        if (indices.Count == 0)
+        if (found == 0)
         {
             LocationHooks.Log?.Warning("[BlueprintShuffle] CharHousing not populated yet - will retry.");
             return;
         }
 
-        var sorted = entries.ToArray();
-        Array.Sort(sorted, (a, b) => string.CompareOrdinal(SortKey(apSeed, "charhousing", a.Type), SortKey(apSeed, "charhousing", b.Type)));
-
-        for (var i = 0; i < indices.Count; i++)
-            charHousing[indices[i]] = sorted[i];
-
         _charHousingApplied = true;
-        LocationHooks.Log?.Msg("[BlueprintShuffle] Shuffled CharHousing mapping (" + indices.Count + " entries): " +
-            string.Join(", ", indices.Select(idx => $"{(CharType)idx}->{charHousing[idx].Type}")));
-    }
-
-    private static string SortKey(string apSeed, string context, BuildingType bt)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"{apSeed}:{context}:{bt}"));
-        return Convert.ToHexString(bytes);
+        LocationHooks.Log?.Msg($"[BlueprintShuffle] Recorded {found} CharHousing-tied buildings (real vanilla mapping, unmodified).");
     }
 }

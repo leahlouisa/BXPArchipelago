@@ -203,14 +203,15 @@ public static class ItemReceiver
             return TryApplyGuarded(
                 () => SaveMgr.I.AddResources(resourceType, amount, false, false),
                 $"Granted {amount} {resourceType}",
-                itemName);
+                itemName,
+                toastText: $"Received: {amount} {itemName}");
         }
 
         _log.Warning($"Unrecognized item: {itemName}");
         return true;
     }
 
-    private static bool TryApplyGuarded(Action grant, string logMessage, string itemName)
+    private static bool TryApplyGuarded(Action grant, string logMessage, string itemName, string toastText = null)
     {
         IsApplyingItem = true;
         try
@@ -228,7 +229,7 @@ public static class ItemReceiver
         }
 
         _log.Msg(logMessage);
-        ApGui.ShowToast($"Received: {itemName}");
+        ApGui.ShowToast(toastText ?? $"Received: {itemName}");
         return true;
     }
 }

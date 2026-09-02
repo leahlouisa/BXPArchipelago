@@ -13,7 +13,7 @@ from .Items import (
     land_expansion_filler_item_names,
     padding_filler_item_names,
 )
-from .Locations import location_table
+from .Locations import blueprint_pool_location_names, char_housing_location_names, location_table
 from .Options import BallXPitOptions
 from .Regions import create_regions
 from .Rules import set_rules
@@ -86,4 +86,16 @@ class BallXPitWorld(World):
             # the level-select screen's unlock check and the generator's access rules can
             # never disagree about the order. [level_enum, ...].
             "level_unlock_order": self.level_unlock_order,
+            # building_enum -> real location name, for every building whose location isn't
+            # simply "Blueprint: {building's real name}" - see Locations.py's positional-
+            # naming redesign (items always keep their real name; pooled and CharHousing-
+            # only blueprint LOCATIONS are positionally named instead, e.g. "Boneyard pooled
+            # blueprint #3"). Exported rather than hand-duplicated on the mod side so the
+            # check the mod actually sends can never disagree with what the generator named
+            # that location. Any building not present here keeps the default
+            # "Blueprint: {display}" convention (currently just the 7 remaining Trophies).
+            "blueprint_location_names": {
+                **blueprint_pool_location_names,
+                **char_housing_location_names,
+            },
         }

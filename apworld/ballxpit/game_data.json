@@ -3,7 +3,7 @@
   "characters": [
     {
       "enum": "kRecaller",
-      "display": "Recaller",
+      "display": "Repentant",
       "id": 900000
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "enum": "kRadicalAI",
-      "display": "Radical AI",
+      "display": "Radical",
       "id": 900008
     },
     {
@@ -83,12 +83,12 @@
     },
     {
       "enum": "kWimp",
-      "display": "Wimp",
+      "display": "Juggler",
       "id": 900016
     },
     {
       "enum": "kPackRat",
-      "display": "Pack Rat",
+      "display": "Hoary Hoarder",
       "id": 900017
     },
     {
@@ -103,7 +103,7 @@
     },
     {
       "enum": "kBackpacker",
-      "display": "Backpacker",
+      "display": "Ballbearer",
       "id": 900020
     },
     {

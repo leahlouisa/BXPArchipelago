@@ -6,19 +6,28 @@ using MelonLoader;
 namespace BallXPitArchipelago;
 
 /// <summary>
-/// Converts vanilla progression triggers into Archipelago location checks. Character unlock
-/// and level access are the only systems still gated on AP items (suppressing the vanilla
-/// grant, converting it into a check instead) - everything else, including blueprints, land
-/// expansion, and elevator upgrades, lets the real vanilla action happen unconditionally and
-/// just reports it as a check afterward. Blueprint grants moved into this second group after
-/// suppression was found to break vanilla's own "next undiscovered blueprint" bookkeeping
-/// for a level (see GainBlueprintLocationPatch).
+/// Converts vanilla progression triggers into Archipelago location checks. Character unlock,
+/// level access, and blueprints for Trophies/the generation-time pool chain/CharHousing
+/// buildings are all suppressed (the vanilla grant is blocked, a check is sent instead, and
+/// the real grant only ever happens via ItemReceiver applying the matching AP item) - land
+/// expansion and elevator upgrades are the only systems left non-suppressed, since purchases/
+/// upgrades stay unrestricted vanilla and just report a check afterward. See
+/// GainBlueprintLocationPatch/SuppressibleBuildingTypes for exactly which buildings get
+/// suppressed and why (some categories genuinely can't be, safely).
 ///
 /// Location name convention (must match the ballxpit apworld's location table):
 ///   "Character: {display}"    - vanilla SaveMgr.UnlockChar call site (suppressed unless
 ///                                 the call came from ItemReceiver applying an AP item)
-///   "Blueprint: {display}"    - vanilla SaveMgr.GainBlueprint call site (not suppressed -
-///                                 see GainBlueprintLocationPatch for why)
+///   "Blueprint: {display}"    - vanilla SaveMgr.GainBlueprint call site, for buildings
+///                                 whose location keeps its real name (currently just the
+///                                 7 remaining Trophies)
+///   "{Level} pooled blueprint #{n}" / "{Level} char-housing blueprint #{n}" - the same
+///                                 GainBlueprint call site, but for buildings whose location
+///                                 was renamed positionally (see Rules.py/Locations.py's
+///                                 redesign) - BlueprintShuffle.LocationNameFor(bt) is the
+///                                 single source of truth for which name a given building
+///                                 actually needs; never hardcode "Blueprint: {display}"
+///                                 for a blueprint check, always go through that helper.
 ///   "Complete Level: {display}" - LevelData[i].DidComplete flips false -> true
 ///   "Elevator Upgrade #{n}"   - vanilla BaseMgr.RunElevatorUpgrade call site (not
 ///                                 suppressed - the upgrade still happens normally)
@@ -77,8 +86,28 @@ internal static class LocationHooks
             return;
         }
 
-        session.Locations.CompleteLocationChecks(id);
-        Log?.Msg($"Sent location check: {locationName}");
+        // CompleteLocationChecks (the sync variant) blocks the calling thread - confirmed by
+        // decompiling Archipelago.MultiClient.Net: it calls socket.SendPacket(...), which
+        // internally does SendMultiplePacketsAsync(...).Wait(). Every call site here runs on
+        // Unity's main thread (Harmony patches execute inline with vanilla's own call stack;
+        // Mod.OnUpdate is the per-frame Update loop) - a network hiccup during that .Wait()
+        // freezes the ENTIRE game, not just AP features. Confirmed live: a real, otherwise
+        // unexplained full freeze at the exact moment a check should have been sent, no
+        // exception, no further log output, required a forced quit. The async variant plus a
+        // non-blocking continuation avoids this - logging in the continuation is safe off the
+        // main thread since it's plain text I/O, not an IL2CPP/Unity call.
+        session.Locations.CompleteLocationChecksAsync(id).ContinueWith((System.Threading.Tasks.Task t) =>
+        {
+            if (t.IsFaulted)
+            {
+                var ex = t.Exception == null ? "unknown error" : t.Exception.GetBaseException().Message;
+                Log?.Warning($"Failed to send location check '{locationName}': {ex}");
+            }
+            else
+            {
+                Log?.Msg($"Sent location check: {locationName}");
+            }
+        });
     }
 
     /// <summary>Call periodically from Mod.OnUpdate() once SaveMgr/MetaSaveData exist.</summary>
@@ -134,7 +163,15 @@ internal static class LocationHooks
         }
 
         _goalReported = true;
-        ApConnection.Session.SetGoalAchieved();
+
+        // SetGoalAchieved() -> SetClientState() -> Socket.SendPacket(...) is ALSO a blocking
+        // call under the hood (same class of bug as SendCheck above, confirmed the same way -
+        // decompiling the client library) - it has no async variant to call instead, so the
+        // fix here is to run it on a background thread rather than block Mod.OnUpdate's
+        // per-frame main-thread tick. Fire-and-forget is fine: nothing needs its result, and
+        // _goalReported already guards against ever calling it twice.
+        var session = ApConnection.Session;
+        System.Threading.Tasks.Task.Run(() => session.SetGoalAchieved());
         Log?.Msg("All levels complete - reported goal achieved to Archipelago.");
     }
 }
@@ -144,6 +181,12 @@ internal static class UnlockCharLocationPatch
 {
     private static bool Prefix(CharType ct)
     {
+        // The Influencer/False Messiah unlocks via vanilla's Twitch Extension integration,
+        // not earnable progression - deliberately left untouched by the randomizer (no
+        // item, no location - see Items.py/Locations.py), so never intercept its unlock.
+        if (ct == CharType.kInfluencer)
+            return true;
+
         // Not connected (mod installed but unconfigured, or mid-setup): behave as vanilla.
         if (ApConnection.Session == null || ItemReceiver.IsApplyingItem)
             return true;
@@ -219,7 +262,7 @@ internal static class GainBlueprintLocationPatch
         if (!GameNames.BuildingNames.ContainsKey(bt))
             return true;
 
-        LocationHooks.SendCheck($"Blueprint: {GameNames.BuildingDisplay(bt)}");
+        LocationHooks.SendCheck(BlueprintShuffle.LocationNameFor(bt));
 
         var suppress = SuppressibleBuildingTypes.Contains(bt);
 
@@ -264,7 +307,25 @@ internal static class LevelSelectItemInitLockedPatch
         if (!unlocked)
             return true;
 
-        __instance.Init(inf, ngPlus);
+        // Forcing vanilla's own Init to run here is a cross-call vanilla never makes on its
+        // own (it only ever calls Init for a level IT already considers unlocked) - confirmed
+        // live that the symmetric case (forcing InitLocked below) can throw a
+        // NullReferenceException inside vanilla's own code for a level vanilla itself
+        // considers unlocked, presumably because InitLocked assumes state that's only valid
+        // while genuinely vanilla-locked. Guard defensively here too: an uncaught exception
+        // here would propagate out of LevelSelectUI.Activate() entirely, aborting Init/
+        // InitLocked for every OTHER level tile queued after this one in the same pass -
+        // confirmed live as the actual cause of an unrelated level's blueprint-count display
+        // going blank, collateral damage from a crash on a completely different level.
+        try
+        {
+            __instance.Init(inf, ngPlus);
+        }
+        catch (Exception e)
+        {
+            LocationHooks.Log?.Warning($"[LevelSelectItemInitLockedPatch] vanilla Init threw for {inf.Type} - leaving this tile as-is rather than letting the exception break every other level's init: {e.Message}");
+        }
+
         return false;
     }
 }
@@ -299,7 +360,25 @@ internal static class LevelSelectItemInitPatch
         LocationHooks.Log?.Msg(
             $"LevelSelectItem.Init({inf.Type}): vanilla considers this unlocked but AP doesn't yet - redirecting to InitLocked.");
 
-        __instance.InitLocked(inf, ngPlus);
+        // Confirmed live: vanilla's real InitLocked can throw a NullReferenceException here
+        // for a level vanilla itself considers already unlocked (this is exactly that case -
+        // we're forcing InitLocked specifically because vanilla thinks it's unlocked and we
+        // disagree) - presumably InitLocked relies on "still locked" state that vanilla no
+        // longer keeps once its own progress has crossed the threshold. An uncaught exception
+        // here propagates out of LevelSelectUI.Activate() and aborts every OTHER level tile's
+        // Init/InitLocked queued after this one in the same pass - confirmed live as the
+        // actual cause of an unrelated level's blueprint-count display going blank. Swallow
+        // it and leave this one tile uninitialized rather than corrupting every other level's
+        // display over a single level's rendering glitch.
+        try
+        {
+            __instance.InitLocked(inf, ngPlus);
+        }
+        catch (Exception e)
+        {
+            LocationHooks.Log?.Warning($"[LevelSelectItemInitPatch] vanilla InitLocked threw for {inf.Type} - leaving this tile as-is rather than letting the exception break every other level's init: {e.Message}");
+        }
+
         return false;
     }
 }

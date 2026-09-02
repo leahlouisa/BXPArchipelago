@@ -13,7 +13,7 @@ internal static partial class GameNames
 {
     internal static readonly System.Collections.Generic.Dictionary<CharType, string> CharacterNames = new()
     {
-        { CharType.kRecaller, "Recaller" },
+        { CharType.kRecaller, "Repentant" },
         { CharType.kItchyFinger, "Itchy Finger" },
         { CharType.kTunneller, "Tunneller" },
         { CharType.kTiptoer, "Tiptoer" },
@@ -21,7 +21,7 @@ internal static partial class GameNames
         { CharType.kTactician, "Tactician" },
         { CharType.kSpendthrift, "Spendthrift" },
         { CharType.kEmbedded, "Embedded" },
-        { CharType.kRadicalAI, "Radical AI" },
+        { CharType.kRadicalAI, "Radical" },
         { CharType.kEmptyNester, "Empty Nester" },
         { CharType.kShade, "Shade" },
         { CharType.kCohabitants, "Cohabitants" },
@@ -29,11 +29,11 @@ internal static partial class GameNames
         { CharType.kBrickHead, "Shieldbearer" },
         { CharType.kSisyphus, "Sisyphus" },
         { CharType.kFlagellant, "Flagellant" },
-        { CharType.kWimp, "Wimp" },
-        { CharType.kPackRat, "Pack Rat" },
+        { CharType.kWimp, "Juggler" },
+        { CharType.kPackRat, "Hoary Hoarder" },
         { CharType.kFalconer, "Falconer" },
         { CharType.kCarouser, "Carouser" },
-        { CharType.kBackpacker, "Backpacker" },
+        { CharType.kBackpacker, "Ballbearer" },
         { CharType.kInfluencer, "Influencer" },
     };
 

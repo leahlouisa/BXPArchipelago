@@ -13,23 +13,27 @@ An [Archipelago](https://archipelago.gg) randomizer integration for [Ball X Pit]
 
 Complete all 8 biome levels.
 
-### Checks (141 total)
+### Checks (140 total)
 
-- Unlocking a character (22)
+- Unlocking a character (21 - see "What doesn't get randomized" below for the 22nd)
 - Unlocking a building blueprint (80), in three flavors:
-  - **62 buildings** are drawn from every level's real boss-drop pool and pooled together across all 8 biomes, then re-partitioned per seed with a randomized count per level - one seed might offer 3 blueprints in the Boneyard and 12 in the Savanna, the next something entirely different. The vanilla building itself is fully replaced by a random check reward; discovery order and how many a biome offers are both shuffled per-seed.
-  - **7 per-level first-completion "Trophies"** work the same way - suppressed and replaced by a random check reward the first time you beat that biome.
-  - **A handful of other buildings** are tied to specific characters via housing (beating a level with a not-yet-housed character grants their housing building) - these work the same way as the other two categories: fully replaced by a random check reward, no real building granted directly.
-  - One specific building, the **Void Trophy**, is deliberately excluded from all of the above and never appears as a reward in any seed - it's permanently repurposed as internal plumbing that keeps the blueprint-discovery chain correct (see the "For developers" section if you're curious why).
+  - **62 buildings** are drawn from every level's real vanilla blueprint-discovery pool, in vanilla's real order and count for that biome - unlike an earlier version of this mod, this composition is now fixed, not shuffled, specifically so a hint naming a check tells you something true about vanilla play. These locations are named positionally rather than by building name (e.g. "Boneyard pooled blueprint #4") since a real building name only helps if you already have vanilla's biome-by-biome layout memorized - what you actually *receive* for finding one is still fully randomized.
+  - **7 per-level first-completion "Trophies"** work similarly - suppressed and replaced by a random check reward the first time you beat that biome. These keep their real names (e.g. "Boneyard Trophy") since there's exactly one per level, no ambiguity to resolve.
+  - **11 buildings** are tied to unlocking a specific character via in-game housing, through a real vanilla mechanism this mod hasn't been able to fully pin down (the trigger and, for one of the 11, even the home biome remain unconfirmed) - named positionally where a likely home biome is known (e.g. "Boneyard char-housing blueprint #1", not live-verified - treat it as a rough hint, not a guarantee), or "Char-housing blueprint (unconfirmed level)" for the one that isn't. These never hold anything critical to completing the seed, specifically because their real timing is unknown.
+  - One specific building, the **Void Trophy**, is deliberately excluded from all of the above and never appears as a reward in any seed - it's permanently repurposed as internal plumbing that keeps the blueprint-discovery chain correct.
 - Completing a biome level for the first time (8)
 - Upgrading the elevator - still costs gears and works exactly as in vanilla, only the reward is randomized (7)
 - Purchasing a base land expansion chunk - still costs resources and works exactly as in vanilla, only the reward is randomized (24 - the game has 25 total land tracts, 1 of which you start with)
 
-### Items (141 total, matching the check count exactly)
+### Items (140 total, matching the check count exactly)
 
-- Characters (22) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla
+- Characters (21) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla. Unlocking a character doesn't require ever building their real housing building - receiving the item is enough.
 - Progressive Level Access (7 copies of one item) - each copy received unlocks whichever biome is next in your own real difficulty order (not the same as the order levels are listed in-game), regardless of when or from where it arrives in the multiworld; this is what actually gates progress toward the goal
 - Wood / Stone / Wheat / Gold - filler resource grants (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost - these checks just grant Wood/Stone/Wheat like any other filler)
+
+### What doesn't get randomized
+
+The Influencer (unlocked in vanilla only via Twitch Extension integration - linking a Twitch account, letting your audience vote on in-run events) is left completely untouched: no item, no location. Randomizing it would force every player to set up Twitch integration just to get a "real" unlock from this mod, which isn't something this randomizer wants to require. If you go through vanilla's own Twitch steps, you'll unlock them exactly as in an unmodded game.
 
 ### Options
 
@@ -95,4 +99,4 @@ To package the apworld yourself instead of using a release build: zip the conten
 
 ## Project status
 
-MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized, blueprint discovery order (and how many blueprints each biome offers) is shuffled per-seed, DeathLink is supported, received items pop an on-screen notification, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.
+MVP complete: Characters, Blueprints, Levels, Elevator Upgrades, and Land Expansion are all randomized (against vanilla's real per-biome blueprint composition, not a shuffled one), DeathLink is supported, received items pop an on-screen notification, and goal completion is reported to the server automatically. See `shared/game_data.json` for the generated list of characters/buildings/levels the integration is built around.
