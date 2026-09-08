@@ -2,7 +2,7 @@ using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.2.2", "leahlouisa")]
+[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.2.3", "leahlouisa")]
 [assembly: MelonGame("Kenny Sun", "BALL x PIT")]
 
 namespace BallXPitArchipelago;
@@ -46,7 +46,6 @@ public class Mod : MelonMod
             BlueprintShuffle.PopulateCharHousingBuildings();
             LevelUnlockOrder.ApplyFromSlotData(ApConnection.SlotData);
             BlueprintShuffle.ProcessPendingRefreshes();
-            EconomyOptions.ApplyBuildingCostScaling();
         }
     }
 }

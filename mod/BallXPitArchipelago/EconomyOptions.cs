@@ -14,18 +14,14 @@ namespace BallXPitArchipelago;
 /// BaseGridMgr.GetExpansionCost()/BuildingInst.GetUpgradeCost() are real computed methods) and
 /// both are confirmed working correctly.
 ///
-/// Building PLACEMENT cost (building_cost_percent's effect on BuildingInfo.BuildCost) is
-/// CURRENTLY DISABLED as of the v0.2.2 hotfix - see ApplyBuildingCostScaling's doc comment.
-/// BuildingInfo.BuildCost is a raw IL2CPP field accessor, not a real method (MelonLoader itself
-/// logs "is a field accessor, it can't be patched" at patch time), so it can't be intercepted
-/// via Harmony - the only way to scale it is to rewrite the underlying data directly. Both ways
-/// of doing that were tried (replacing BuildingInfo.BuildCost with a newly-scaled Cost object,
-/// and mutating the existing Cost's Num array in place instead) and BOTH reliably froze the
-/// game the first time a real purchase tried to spend the scaled cost - confirmed live down to
-/// a single-resource 8 Gold purchase on a brand new save during the tutorial's forced first
-/// building placement, so this isn't a rare edge case, it's unconditional. A proper fix needs
-/// to bypass vanilla's Cost.Spend()/SaveMgr.SpendResources pipeline for purchases entirely
-/// rather than trying to make it tolerate scaled BuildCost data - not yet implemented.
+/// Building PLACEMENT cost (building_cost_percent's effect on what a new building costs to
+/// place, as opposed to upgrade) is handled entirely in EconomyHooks.cs's
+/// BuildingPlacementCostRefundPatch - see that class's doc comment. This class deliberately
+/// never touches BuildingInfo.BuildCost (a raw IL2CPP field accessor - confirmed live,
+/// including by MelonLoader's own "is a field accessor, it can't be patched" log line at patch
+/// time, that rewriting its data reliably freezes the game the first time a real purchase tries
+/// to spend the rewritten cost, unconditionally, down to a single-resource 8 Gold purchase on a
+/// brand new save - see git history around the v0.2.2 hotfix for the full investigation).
 ///
 /// Falls back to vanilla's real values if slot data is missing, malformed, or not yet loaded,
 /// rather than granting 0 or throwing - same defensive pattern as ApConnection.IsDeathLinkEnabled.
@@ -35,8 +31,6 @@ internal static class EconomyOptions
     private const int DefaultWoodStoneWheatFillerAmount = 50;
     private const int DefaultGoldFillerAmount = 200;
     private const int DefaultCostPercent = 100;
-
-    private static bool _buildCostScalingApplied;
 
     internal static int WoodFillerAmount { get; private set; } = DefaultWoodStoneWheatFillerAmount;
     internal static int StoneFillerAmount { get; private set; } = DefaultWoodStoneWheatFillerAmount;
@@ -72,35 +66,21 @@ internal static class EconomyOptions
     }
 
     /// <summary>
-    /// HOTFIX (v0.2.2): temporarily disabled, unconditionally. Confirmed live that scaling
-    /// BuildingInfo.BuildCost - in EVERY variant tried (replacing the Cost object, mutating it
-    /// in place, with or without the zero-amount guards, with or without diagnostic patches on
-    /// the call chain) - reliably freezes the game the first time a REAL (nonzero) resource
-    /// spend actually happens, even for a single-resource 8 Gold purchase on a completely
-    /// fresh save during the tutorial's forced first building placement. That's not a rare edge
-    /// case, it's every purchase, unconditionally, once BuildingInfo.BuildCost has been
-    /// touched at all - so shipping this half-working was worse than shipping it off. Until a
-    /// proper redesign lands (bypassing Cost.Spend()/SaveMgr.SpendResources entirely for
-    /// purchases rather than trying to make vanilla's own pipeline tolerate scaled BuildCost
-    /// data), building_cost_percent has no effect on PLACEMENT cost - buildings cost their real
-    /// vanilla amount to place regardless of what this option is set to. BuildingInst.
-    /// GetUpgradeCost() scaling (EconomyHooks.cs) is UNAFFECTED and still works - that's a
-    /// completely different code path (a real method returning a fresh, throwaway Cost each
-    /// call, confirmed live many times over never to have crashed) - so upgrade costs still
-    /// scale normally. Land expansion (BaseGridMgr.GetExpansionCost, a real method returning a
-    /// plain int, also never crashed) is unaffected too.
+    /// Scales a single resource amount to `scale` percent of its vanilla value, flooring any
+    /// originally-positive amount back up to at least 1 rather than letting it round down to 0 -
+    /// confirmed live that an explicit 0 for a resource a purchase actually costs freezes
+    /// SaveMgr.SpendResources (vanilla's own data never produces that combination, so nothing in
+    /// its native code was ever exercised against it before this option existed). Shared by
+    /// ScaleCostInPlace (upgrade cost) and BuildingPlacementCostRefundPatch (placement cost
+    /// refund, EconomyHooks.cs) so both use identical rounding/flooring behavior.
     /// </summary>
-    internal static void ApplyBuildingCostScaling()
+    internal static int ScaleAmount(int vanillaAmt, float scale)
     {
-        if (_buildCostScalingApplied || BuildingCostPercent == 100)
-            return;
+        if (vanillaAmt <= 0)
+            return vanillaAmt;
 
-        _buildCostScalingApplied = true;
-        LocationHooks.Log?.Msg(
-            $"[EconomyOptions] building_cost_percent={BuildingCostPercent} but BuildCost scaling is " +
-            "TEMPORARILY DISABLED (v0.2.2 hotfix) - confirmed live it freezes the game on any real " +
-            "purchase, regardless of implementation. Buildings will cost their real vanilla amount to " +
-            "place. Upgrade cost and land expansion scaling are unaffected and still apply normally.");
+        var scaled = (int)System.Math.Round(vanillaAmt * scale);
+        return scaled > 0 ? scaled : 1;
     }
 
     /// <summary>
@@ -109,23 +89,13 @@ internal static class EconomyOptions
     /// comment for why that distinction turned out to matter: replacing BuildCost with a
     /// different Cost instance froze the game on a completely unrelated-looking call
     /// (SaveMgr.SpendResources with a normal nonzero amount) for any building whose cost had
-    /// been replaced this way, 100% of the time, confirmed live. Also floors any resource that
-    /// was originally nonzero back up to at least 1 if scaling rounds it down to 0 - separately
-    /// confirmed live that an explicit 0 for a resource a purchase actually costs freezes
-    /// SaveMgr.SpendResources too (vanilla's own data never produces that combination, so nothing
-    /// in its native code was ever exercised against it before this option existed).
+    /// been replaced this way, 100% of the time, confirmed live.
     /// </summary>
     internal static void ScaleCostInPlace(Cost cost, float scale)
     {
         var num = cost.Num;
         for (var i = 0; i < num.Length; i++)
-        {
-            if (num[i] <= 0)
-                continue;
-
-            var scaled = (int)System.Math.Round(num[i] * scale);
-            num[i] = scaled > 0 ? scaled : 1;
-        }
+            num[i] = ScaleAmount(num[i], scale);
 
         cost.Num = num;
     }
