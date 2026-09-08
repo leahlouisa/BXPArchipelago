@@ -49,8 +49,6 @@ namespace BallXPitArchipelago;
 /// </summary>
 public static class ItemReceiver
 {
-    private const int WoodStoneWheatFillerAmount = 50;
-    private const int GoldFillerAmount = 200;
     private const string ProgressiveLevelAccessItemName = "Progressive Level Access";
 
     private static MelonLogger.Instance _log;
@@ -199,7 +197,15 @@ public static class ItemReceiver
                 "Gold" => ResourceType.kGold,
                 _ => throw new InvalidOperationException(),
             };
-            var amount = resourceType == ResourceType.kGold ? GoldFillerAmount : WoodStoneWheatFillerAmount;
+            // Yaml-configurable (Options.py filler_*_amount) - see EconomyOptions.cs.
+            var amount = resourceType switch
+            {
+                ResourceType.kWood => EconomyOptions.WoodFillerAmount,
+                ResourceType.kStone => EconomyOptions.StoneFillerAmount,
+                ResourceType.kWheat => EconomyOptions.WheatFillerAmount,
+                ResourceType.kGold => EconomyOptions.GoldFillerAmount,
+                _ => throw new InvalidOperationException(),
+            };
             return TryApplyGuarded(
                 () => SaveMgr.I.AddResources(resourceType, amount, false, false),
                 $"Granted {amount} {resourceType}",

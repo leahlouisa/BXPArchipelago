@@ -38,6 +38,9 @@ The Influencer (unlocked in vanilla only via Twitch Extension integration - link
 ### Options
 
 - `death_link` - if enabled, dying in Ball x Pit kills every other DeathLink-enabled player's character, and dying in their game ends your current run.
+- `filler_wood_amount` / `filler_stone_amount` / `filler_wheat_amount` / `filler_gold_amount` - how much of that resource a single filler grant is worth. Vanilla-matching defaults: 50/50/50/200.
+- `building_cost_percent` - scales every building's blueprint and upgrade cost (Wood/Stone/Wheat/Gold) to this percent of its real vanilla cost, e.g. 25 turns an 800 Gold/200 Wheat building into 200 Gold/50 Wheat. Default 100 (unchanged). Doesn't affect elevator upgrade gear costs, which always stay vanilla.
+- `land_expansion_cost_percent` - same idea, independently, for land expansion chunks' Gold cost. Default 100 (unchanged).
 
 ---
 

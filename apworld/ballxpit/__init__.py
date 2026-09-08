@@ -98,4 +98,21 @@ class BallXPitWorld(World):
                 **blueprint_pool_location_names,
                 **char_housing_location_names,
             },
+            # Yaml-configurable filler grant sizes (Options.py) - the mod applies these
+            # instead of the vanilla 50/50/50/200 amounts when granting a Wood/Stone/Wheat/
+            # Gold filler item. Purely cosmetic (filler items are never access-rule-relevant),
+            # so no generation-time validation needed.
+            "filler_amounts": {
+                "Wood": int(self.options.filler_wood_amount),
+                "Stone": int(self.options.filler_stone_amount),
+                "Wheat": int(self.options.filler_wheat_amount),
+                "Gold": int(self.options.filler_gold_amount),
+            },
+            # Yaml-configurable economy discounts (Options.py) - the mod scales every
+            # building/upgrade cost and every land expansion chunk's cost by these percents.
+            # Also purely cosmetic to the generator: land expansion and building purchases
+            # are unrestricted vanilla (not gated by any access rule), so discounting them
+            # can't affect seed completability either way.
+            "building_cost_percent": int(self.options.building_cost_percent),
+            "land_expansion_cost_percent": int(self.options.land_expansion_cost_percent),
         }
