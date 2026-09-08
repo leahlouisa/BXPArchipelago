@@ -139,6 +139,78 @@ internal static class BuildingPlacementCostRefundPatch
 }
 
 /// <summary>
+/// Makes the discount visible/selectable BEFORE a purchase, not just refunded after. Without
+/// this, BuildingPlacementCostRefundPatch above is real but invisible: the build menu still
+/// shows and gates on the full vanilla cost, so a player who can only afford the discounted
+/// price can't even select or place the building, even though the purchase would actually
+/// succeed (pay vanilla, get refunded the difference) if they somehow forced it through.
+///
+/// Both patches below clone the shared BuildingInfo.BuildCost into a private, throwaway Cost
+/// via `new Cost(vanillaCost)` and scale THAT clone with the already-proven-safe
+/// EconomyOptions.ScaleCostInPlace - never the shared instance itself, so none of the freeze
+/// risk that mutating BuildingInfo.BuildCost carries applies here. This is the same "fresh
+/// throwaway object" pattern BuildingUpgradeCostScalePatch already relies on.
+///
+/// BuildItem is the build menu's per-building list tile (TgtInfo/TxtCost/CanAfford are all
+/// plain settable fields, confirmed via decompile - not Harmony-patchable individually, same as
+/// BuildingInfo.BuildCost, but directly writable). InitInternal() is where vanilla itself sets
+/// TxtCost's text and the CanAfford field from the real vanilla cost - Postfixing it overwrites
+/// both with the discounted clone's own GetColorizedStr()/CanAfford(), so the displayed numbers
+/// AND the tile's afford-to-select state both reflect the discount, using Cost's own real
+/// methods rather than us re-deriving color/afford logic by hand.
+/// </summary>
+[HarmonyPatch(typeof(BuildItem), nameof(BuildItem.InitInternal))]
+internal static class BuildItemCostDisplayPatch
+{
+    private static void Postfix(BuildItem __instance)
+    {
+        if (EconomyOptions.BuildingCostPercent == 100)
+            return;
+
+        var vanillaCost = __instance.TgtInfo?.BuildCost;
+        if (vanillaCost == null || __instance.TxtCost == null)
+            return;
+
+        var discounted = new Cost(vanillaCost);
+        EconomyOptions.ScaleCostInPlace(discounted, EconomyOptions.BuildingCostPercent / 100f);
+
+        __instance.TxtCost.text = discounted.GetColorizedStr();
+        __instance.CanAfford = discounted.CanAfford();
+    }
+}
+
+/// <summary>
+/// Fixes the grid-placement click-through gate itself: BaseGridMgr.CanBuildPlacePreview() (and
+/// anything else that asks "can this actually be placed") almost certainly calls
+/// Cost.CanAfford() on the same shared BuildingInfo.BuildCost object BuildingPlacementCostRefundPatch's
+/// Prefix reads - intercepted here, scoped ONLY to that exact object via reference equality
+/// against the currently active placement preview, so every other CanAfford() call (upgrade
+/// costs, land expansion, or a different building's cost check elsewhere) passes through
+/// completely untouched. Skips the original native call entirely for the matched instance
+/// (Prefix returns false) rather than layering a Postfix override on top of it, since the
+/// vanilla result being replaced is "not affordable" and there's nothing useful to combine it
+/// with.
+/// </summary>
+[HarmonyPatch(typeof(Cost), nameof(Cost.CanAfford))]
+internal static class BuildingPlacementAffordabilityPatch
+{
+    private static bool Prefix(Cost __instance, ref bool __result)
+    {
+        if (EconomyOptions.BuildingCostPercent == 100)
+            return true;
+
+        var activeCost = BaseGridMgr.I?.GetPlacePreview()?.Inst?.GetInfo()?.BuildCost;
+        if (activeCost == null || !ReferenceEquals(__instance, activeCost))
+            return true;
+
+        var discounted = new Cost(activeCost);
+        EconomyOptions.ScaleCostInPlace(discounted, EconomyOptions.BuildingCostPercent / 100f);
+        __result = discounted.CanAfford();
+        return false;
+    }
+}
+
+/// <summary>
 /// Real fix for the confirmed-live freeze: SaveMgr.SpendResources(rt, 0) never returns
 /// (Prefix logs "entering", no matching Postfix ever fires, no exception, nothing - the same
 /// silent-freeze signature as the earlier network-blocking-call bug, just a different native
