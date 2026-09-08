@@ -75,16 +75,6 @@
       <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.TextRenderingModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
-    <!-- BuildItem.TxtCost / BuildingInfoPanel.TxtCost are TextMeshProUGUI, whose base class
-         (MaskableGraphic) lives in UnityEngine.UI. -->
-    <Reference Include="Unity.TextMeshPro">
-      <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Unity.TextMeshPro.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="UnityEngine.UI">
-      <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\UnityEngine.UI.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
     <!-- SaveMgr's MonoBehaviour base chain touches Odin Inspector's serialization types. -->
     <Reference Include="Il2CppSirenix.Serialization">
       <HintPath>$(GameDir)\MelonLoader\Il2CppAssemblies\Il2CppSirenix.Serialization.dll</HintPath>

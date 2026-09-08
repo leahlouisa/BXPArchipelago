@@ -166,61 +166,15 @@ internal static class Debug_GameMgr_EnterEndless
     }
 }
 
-/// <summary>
-/// Restored after confirming removing every patch on this chain does NOT fix the crash
-/// (ruling out "too many stacked patches" as the cause) - full entry/exit visibility on the
-/// whole Cost.CanAfford/Cost.Spend/SaveMgr.Spend*/Add* chain is needed again to see exactly
-/// where the current build (in-place BuildCost mutation + zero-amount guards, no other
-/// changes) actually fails.
-/// </summary>
-[HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.SpendResources))]
-internal static class Debug_SaveMgr_SpendResources
-{
-    private static void Prefix(ResourceType rt, int amt)
-    {
-        LocationHooks.Log?.Msg($"[DBG] entering SaveMgr.SpendResources(rt={rt}, amt={amt})");
-    }
-
-    private static void Postfix(ResourceType rt, int amt)
-    {
-        LocationHooks.Log?.Msg($"[DBG] returned SaveMgr.SpendResources(rt={rt}, amt={amt})");
-    }
-}
-
-[HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.SpendGold))]
-internal static class Debug_SaveMgr_SpendGold
-{
-    private static void Prefix(int amt)
-    {
-        LocationHooks.Log?.Msg($"[DBG] entering SaveMgr.SpendGold(amt={amt})");
-    }
-
-    private static void Postfix(int amt)
-    {
-        LocationHooks.Log?.Msg($"[DBG] returned SaveMgr.SpendGold(amt={amt})");
-    }
-}
-
-[HarmonyPatch(typeof(Cost), nameof(Cost.CanAfford))]
-internal static class Debug_Cost_CanAfford
-{
-    private static void Postfix(Cost __instance, bool __result)
-    {
-        LocationHooks.Log?.Msg($"[DBG] Cost.CanAfford() cost={__instance?.ToString("/")}, result={__result}");
-    }
-}
-
-[HarmonyPatch(typeof(Cost), nameof(Cost.Spend))]
-internal static class Debug_Cost_Spend
-{
-    private static void Prefix(Cost __instance)
-    {
-        LocationHooks.Log?.Msg($"[DBG] entering Cost.Spend() cost={__instance?.ToString("/")}");
-    }
-
-    private static void Postfix(Cost __instance)
-    {
-        LocationHooks.Log?.Msg($"[DBG] returned Cost.Spend() cost={__instance?.ToString("/")}");
-    }
-}
+// REMOVED (2026-09-08): this used to hold Debug_SaveMgr_SpendResources, Debug_SaveMgr_SpendGold,
+// Debug_Cost_CanAfford, and Debug_Cost_Spend - diagnostic Prefix/Postfix logging on the
+// Cost.CanAfford/Cost.Spend/SaveMgr.Spend* chain. Debug_SaveMgr_SpendResources turned out to be
+// actively dangerous, not just inert logging: root cause of the whole placement-crash saga is
+// that ANY Harmony patch on SaveMgr.SpendResources (regardless of what it does) breaks it when
+// called reentrant from inside Cost.Spend()'s own native execution, causing an unconditional
+// silent freeze. This was confirmed live the hard way - a build with every OTHER placement-cost
+// patch removed still froze on a real placement until this file's own debug hook on
+// SpendResources was ALSO removed. Do not re-add a patch on SaveMgr.SpendResources/SpendGold/
+// AddResources/AddMetaGold for any reason (logging included) without a lot more investigation
+// into why this reentrancy hazard exists at all.
 #endif
