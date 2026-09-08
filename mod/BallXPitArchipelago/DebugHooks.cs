@@ -112,4 +112,115 @@ internal static class Debug_CharMetaInst_AddLvl
         LocationHooks.Log?.Msg($"[DBG] returned CharMetaInst.AddLvl(type={__instance?.Type}, newLvl={__instance?.Lvl})");
     }
 }
+
+/// <summary>
+/// Investigating whether a guaranteed-blueprint-per-boss option is feasible. No dedicated
+/// "boss defeated" method/state was found via decompiling (Assembly-CSharp has no
+/// OnBossKilled, no boss-tracking field on LevelData beyond DidCompleteWithChar's opaque
+/// tgtDifficulty getter) - bosses turn out to be grid-piece-based (LevelInfo.BossInfo/
+/// BossTurns), not a separate combat subsystem with its own hookable event. GameState DOES
+/// have a dedicated kFoundBlueprint entry though, and GameMgr.SetState is the single dispatch
+/// point for every transition - logging every transition plus the level-complete/endless-entry
+/// anchors should let us correlate against the user's own boss-kill timing to find the real
+/// trigger (or confirm there isn't a clean one and a different approach is needed).
+/// </summary>
+[HarmonyPatch(typeof(GameMgr), nameof(GameMgr.SetState))]
+internal static class Debug_GameMgr_SetState
+{
+    private static void Prefix(GameState st, bool force)
+    {
+        LocationHooks.Log?.Msg($"[DBG] entering GameMgr.SetState(state={st}, force={force})");
+    }
+
+    private static void Postfix(GameState st, bool force)
+    {
+        LocationHooks.Log?.Msg($"[DBG] returned GameMgr.SetState(state={st}, force={force})");
+    }
+}
+
+[HarmonyPatch(typeof(GameMgr), nameof(GameMgr.MarkLevelComplete))]
+internal static class Debug_GameMgr_MarkLevelComplete
+{
+    private static void Prefix()
+    {
+        LocationHooks.Log?.Msg("[DBG] entering GameMgr.MarkLevelComplete()");
+    }
+
+    private static void Postfix()
+    {
+        LocationHooks.Log?.Msg("[DBG] returned GameMgr.MarkLevelComplete()");
+    }
+}
+
+[HarmonyPatch(typeof(GameMgr), nameof(GameMgr.EnterEndless))]
+internal static class Debug_GameMgr_EnterEndless
+{
+    private static void Prefix()
+    {
+        LocationHooks.Log?.Msg("[DBG] entering GameMgr.EnterEndless()");
+    }
+
+    private static void Postfix()
+    {
+        LocationHooks.Log?.Msg("[DBG] returned GameMgr.EnterEndless()");
+    }
+}
+
+/// <summary>
+/// Restored after confirming removing every patch on this chain does NOT fix the crash
+/// (ruling out "too many stacked patches" as the cause) - full entry/exit visibility on the
+/// whole Cost.CanAfford/Cost.Spend/SaveMgr.Spend*/Add* chain is needed again to see exactly
+/// where the current build (in-place BuildCost mutation + zero-amount guards, no other
+/// changes) actually fails.
+/// </summary>
+[HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.SpendResources))]
+internal static class Debug_SaveMgr_SpendResources
+{
+    private static void Prefix(ResourceType rt, int amt)
+    {
+        LocationHooks.Log?.Msg($"[DBG] entering SaveMgr.SpendResources(rt={rt}, amt={amt})");
+    }
+
+    private static void Postfix(ResourceType rt, int amt)
+    {
+        LocationHooks.Log?.Msg($"[DBG] returned SaveMgr.SpendResources(rt={rt}, amt={amt})");
+    }
+}
+
+[HarmonyPatch(typeof(SaveMgr), nameof(SaveMgr.SpendGold))]
+internal static class Debug_SaveMgr_SpendGold
+{
+    private static void Prefix(int amt)
+    {
+        LocationHooks.Log?.Msg($"[DBG] entering SaveMgr.SpendGold(amt={amt})");
+    }
+
+    private static void Postfix(int amt)
+    {
+        LocationHooks.Log?.Msg($"[DBG] returned SaveMgr.SpendGold(amt={amt})");
+    }
+}
+
+[HarmonyPatch(typeof(Cost), nameof(Cost.CanAfford))]
+internal static class Debug_Cost_CanAfford
+{
+    private static void Postfix(Cost __instance, bool __result)
+    {
+        LocationHooks.Log?.Msg($"[DBG] Cost.CanAfford() cost={__instance?.ToString("/")}, result={__result}");
+    }
+}
+
+[HarmonyPatch(typeof(Cost), nameof(Cost.Spend))]
+internal static class Debug_Cost_Spend
+{
+    private static void Prefix(Cost __instance)
+    {
+        LocationHooks.Log?.Msg($"[DBG] entering Cost.Spend() cost={__instance?.ToString("/")}");
+    }
+
+    private static void Postfix(Cost __instance)
+    {
+        LocationHooks.Log?.Msg($"[DBG] returned Cost.Spend() cost={__instance?.ToString("/")}");
+    }
+}
 #endif

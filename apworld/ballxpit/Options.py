@@ -37,11 +37,15 @@ class FillerGoldAmount(Range):
 
 class BuildingCostPercent(Range):
     """
-    Scales every building's blueprint and upgrade cost (Wood/Stone/Wheat/Gold) to this
-    percent of its real vanilla cost - e.g. 25 means a building that costs 800 Gold/200
-    Wheat in vanilla instead costs 200 Gold/50 Wheat. 100 = unchanged vanilla cost. Does not
-    affect land expansion (see land_expansion_cost_percent) or elevator upgrade gear costs,
-    which always stay vanilla.
+    Scales every building's UPGRADE cost (Wood/Stone/Wheat/Gold) to this percent of its real
+    vanilla cost - e.g. 25 means an upgrade that costs 800 Gold/200 Wheat in vanilla instead
+    costs 200 Gold/50 Wheat. 100 = unchanged vanilla cost. Does not affect land expansion (see
+    land_expansion_cost_percent) or elevator upgrade gear costs, which always stay vanilla.
+
+    KNOWN LIMITATION (as of this apworld version): this currently only scales UPGRADE cost, not
+    a building's initial placement/blueprint cost - a bug in the mod's placement-cost discount
+    causes a guaranteed freeze on any purchase, so it's temporarily disabled there until fixed.
+    Buildings still cost their full vanilla amount to place.
     """
     display_name = "Building Cost Percent"
     range_start = 1

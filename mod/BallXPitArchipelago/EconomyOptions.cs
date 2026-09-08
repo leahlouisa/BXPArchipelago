@@ -11,19 +11,24 @@ namespace BallXPitArchipelago;
 /// item grants (used by ItemReceiver instead of hardcoding vanilla's 50/50/50/200), and what
 /// percent of vanilla cost buildings/land-expansion should charge. Land expansion and
 /// building upgrade costs are applied via ordinary Harmony patches (see EconomyHooks.cs -
-/// BaseGridMgr.GetExpansionCost()/BuildingInst.GetUpgradeCost() are real computed methods).
-/// Building PLACEMENT cost can't be done that way, though: confirmed live that
-/// BuildingInfo.BuildCost is a raw IL2CPP field accessor, not a real method - MelonLoader
-/// itself logs "is a field accessor, it can't be patched" for it at patch time, and a Harmony
-/// patch on it silently never fires (a placed Schoolhouse still charged the full vanilla 5
-/// Wheat/2 Stone with building_cost_percent=25 set). ApplyBuildingCostScaling works around
-/// this by rewriting every BuildingInfo's BuildCost field once, directly, via its own public
-/// setter (no patching needed for that - we're not intercepting a call, just overwriting the
-/// data once before the player can interact with any build menu) - every subsequent read of
-/// BuildCost, from whatever internal path actually consults it, then sees the already-scaled
-/// value with nothing further to patch. Falls back to vanilla's real values if slot data is
-/// missing, malformed, or not yet loaded, rather than granting 0 or throwing - same
-/// defensive pattern as ApConnection.IsDeathLinkEnabled.
+/// BaseGridMgr.GetExpansionCost()/BuildingInst.GetUpgradeCost() are real computed methods) and
+/// both are confirmed working correctly.
+///
+/// Building PLACEMENT cost (building_cost_percent's effect on BuildingInfo.BuildCost) is
+/// CURRENTLY DISABLED as of the v0.2.2 hotfix - see ApplyBuildingCostScaling's doc comment.
+/// BuildingInfo.BuildCost is a raw IL2CPP field accessor, not a real method (MelonLoader itself
+/// logs "is a field accessor, it can't be patched" at patch time), so it can't be intercepted
+/// via Harmony - the only way to scale it is to rewrite the underlying data directly. Both ways
+/// of doing that were tried (replacing BuildingInfo.BuildCost with a newly-scaled Cost object,
+/// and mutating the existing Cost's Num array in place instead) and BOTH reliably froze the
+/// game the first time a real purchase tried to spend the scaled cost - confirmed live down to
+/// a single-resource 8 Gold purchase on a brand new save during the tutorial's forced first
+/// building placement, so this isn't a rare edge case, it's unconditional. A proper fix needs
+/// to bypass vanilla's Cost.Spend()/SaveMgr.SpendResources pipeline for purchases entirely
+/// rather than trying to make it tolerate scaled BuildCost data - not yet implemented.
+///
+/// Falls back to vanilla's real values if slot data is missing, malformed, or not yet loaded,
+/// rather than granting 0 or throwing - same defensive pattern as ApConnection.IsDeathLinkEnabled.
 /// </summary>
 internal static class EconomyOptions
 {
@@ -67,37 +72,62 @@ internal static class EconomyOptions
     }
 
     /// <summary>
-    /// Call periodically from Mod.OnUpdate() once InfoDB is ready (same pattern as
-    /// BlueprintShuffle's InfoDB-dependent applies) - rewrites every BuildingInfo.BuildCost
-    /// once via its normal setter. Guarded by _buildCostScalingApplied so a percent of 100
-    /// (the default) never touches InfoDB at all, and a non-default percent only ever gets
-    /// applied once per process (re-applying on a later call would compound the discount,
-    /// since we're overwriting the field itself rather than replacing a return value).
+    /// HOTFIX (v0.2.2): temporarily disabled, unconditionally. Confirmed live that scaling
+    /// BuildingInfo.BuildCost - in EVERY variant tried (replacing the Cost object, mutating it
+    /// in place, with or without the zero-amount guards, with or without diagnostic patches on
+    /// the call chain) - reliably freezes the game the first time a REAL (nonzero) resource
+    /// spend actually happens, even for a single-resource 8 Gold purchase on a completely
+    /// fresh save during the tutorial's forced first building placement. That's not a rare edge
+    /// case, it's every purchase, unconditionally, once BuildingInfo.BuildCost has been
+    /// touched at all - so shipping this half-working was worse than shipping it off. Until a
+    /// proper redesign lands (bypassing Cost.Spend()/SaveMgr.SpendResources entirely for
+    /// purchases rather than trying to make vanilla's own pipeline tolerate scaled BuildCost
+    /// data), building_cost_percent has no effect on PLACEMENT cost - buildings cost their real
+    /// vanilla amount to place regardless of what this option is set to. BuildingInst.
+    /// GetUpgradeCost() scaling (EconomyHooks.cs) is UNAFFECTED and still works - that's a
+    /// completely different code path (a real method returning a fresh, throwaway Cost each
+    /// call, confirmed live many times over never to have crashed) - so upgrade costs still
+    /// scale normally. Land expansion (BaseGridMgr.GetExpansionCost, a real method returning a
+    /// plain int, also never crashed) is unaffected too.
     /// </summary>
     internal static void ApplyBuildingCostScaling()
     {
-        if (_buildCostScalingApplied || BuildingCostPercent == 100 || InfoDB.I == null)
+        if (_buildCostScalingApplied || BuildingCostPercent == 100)
             return;
-
-        var buildings = InfoDB.I.Buildings;
-        if (buildings == null)
-            return;
-
-        var scale = BuildingCostPercent / 100f;
-        var count = 0;
-        foreach (var info in buildings)
-        {
-            if (info == null || info.BuildCost == null)
-                continue;
-
-            info.BuildCost = info.BuildCost * scale;
-            count++;
-        }
 
         _buildCostScalingApplied = true;
         LocationHooks.Log?.Msg(
-            $"[EconomyOptions] Rewrote BuildCost directly for {count} buildings to {BuildingCostPercent}% " +
-            "(BuildingInfo.BuildCost is a raw field accessor, not Harmony-patchable - see class doc).");
+            $"[EconomyOptions] building_cost_percent={BuildingCostPercent} but BuildCost scaling is " +
+            "TEMPORARILY DISABLED (v0.2.2 hotfix) - confirmed live it freezes the game on any real " +
+            "purchase, regardless of implementation. Buildings will cost their real vanilla amount to " +
+            "place. Upgrade cost and land expansion scaling are unaffected and still apply normally.");
+    }
+
+    /// <summary>
+    /// Scales an EXISTING Cost's Num array in place - never constructs a replacement Cost and
+    /// never reassigns BuildingInfo.BuildCost to a different object. See this class's doc
+    /// comment for why that distinction turned out to matter: replacing BuildCost with a
+    /// different Cost instance froze the game on a completely unrelated-looking call
+    /// (SaveMgr.SpendResources with a normal nonzero amount) for any building whose cost had
+    /// been replaced this way, 100% of the time, confirmed live. Also floors any resource that
+    /// was originally nonzero back up to at least 1 if scaling rounds it down to 0 - separately
+    /// confirmed live that an explicit 0 for a resource a purchase actually costs freezes
+    /// SaveMgr.SpendResources too (vanilla's own data never produces that combination, so nothing
+    /// in its native code was ever exercised against it before this option existed).
+    /// </summary>
+    internal static void ScaleCostInPlace(Cost cost, float scale)
+    {
+        var num = cost.Num;
+        for (var i = 0; i < num.Length; i++)
+        {
+            if (num[i] <= 0)
+                continue;
+
+            var scaled = (int)System.Math.Round(num[i] * scale);
+            num[i] = scaled > 0 ? scaled : 1;
+        }
+
+        cost.Num = num;
     }
 
     private static int ReadInt(JObject obj, string key, int fallback)
