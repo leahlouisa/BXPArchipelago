@@ -11,23 +11,17 @@ namespace BallXPitArchipelago;
 /// (BuildingUpgradeCostScalePatch) or the returned int (LandExpansionCostScalePatch) works
 /// cleanly and is confirmed live, many times over, to never crash.
 ///
-/// Building PLACEMENT cost is DELIBERATELY NOT scaled here (as of the emergency hotfix that
-/// removed BuildingPlacementCostRefundPatch - see git history). Two independent approaches were
-/// tried and both caused real, confirmed-live freezes:
-///   1. Rewriting BuildingInfo.BuildCost's data directly (replacing or mutating-in-place the
-///      shared Cost instance every building of that type points at) - froze on the very next
-///      real purchase, unconditionally.
-///   2. A pay-full-then-refund-the-difference design that never touched BuildingInfo.BuildCost
-///      at all - ALSO froze on a real placement (a "boulder"), for reasons not yet root-caused.
-///      Notably, a related affordability-gate patch in this same effort (since removed) turned
-///      out to freeze for a clearly understood reason: it called Cost.CanAfford() from inside
-///      its own Harmony Prefix patching that exact method - a method calling back into itself
-///      through Harmony while its own wrapper is still on the stack. That specific bug is fixed,
-///      but the refund patch itself still froze even after removing it, so something else about
-///      patching BaseGridMgr.BuildBuilding (or reading the placement preview from inside it) is
-///      also unsafe in a way not yet understood. Until that's properly diagnosed, placement cost
-///      stays 100% vanilla regardless of building_cost_percent - only upgrade and land expansion
-///      cost scale.
+/// Building PLACEMENT cost is handled separately, in EconomyOptions.ApplyBuildingCostScaling -
+/// direct mutation of BuildingInfo.BuildCost's data, not a Harmony patch at all (it's a raw
+/// IL2CPP field accessor with nothing to patch). An entire session's investigation wrongly
+/// blamed this mechanism for a building-placement freeze; the real cause turned out to be
+/// unrelated Harmony patches on SaveMgr.SpendResources/SpendGold/AddResources/AddMetaGold
+/// (added around the same time, for an unrelated zero-gold edge case) - ANY patch on those four
+/// methods breaks them when called reentrant from inside Cost.Spend()'s own native execution,
+/// regardless of what the patch does. Once those were found and permanently removed (see git
+/// history), direct BuildCost mutation turned out to be fine after all. Hard rule going forward:
+/// never Harmony-patch SaveMgr.SpendResources/SpendGold/AddResources/AddMetaGold, for any
+/// reason, ever - not even for logging.
 ///
 /// Deliberately does NOT touch elevator upgrade gear costs - those are a different currency the
 /// Rules.py access rules assume are the real vanilla amounts (see Items.py's
@@ -45,16 +39,67 @@ internal static class BuildingUpgradeCostScalePatch
     }
 }
 
+/// <summary>
+/// Scales GetExpansionCost()'s displayed/queried value, and separately stashes the real
+/// vanilla amount for LandExpansionCostRefundPatch below to use. Both patches exist because of
+/// a real bug found live: BaseGridMgr.ConfirmExpansion() (the actual purchase) does NOT charge
+/// whatever GetExpansionCost() last returned - it independently computes/charges the real
+/// vanilla amount regardless of this Postfix, so scaling GetExpansionCost() alone only affects
+/// what's DISPLAYED before the purchase, not what's actually charged. Confirmed live: with
+/// land_expansion_cost_percent=25, expansions displayed as 50/75 Gold but the player was
+/// actually charged the real 200/300 Gold - going 75 Gold negative on a purchase they believed
+/// (correctly, per the UI) they could afford. LastRealVanillaCost records the pre-scaling value
+/// so the refund patch can recover the true vanilla amount despite this Postfix having already
+/// overwritten it for every other caller.
+/// </summary>
 [HarmonyPatch(typeof(BaseGridMgr), nameof(BaseGridMgr.GetExpansionCost))]
 internal static class LandExpansionCostScalePatch
 {
+    internal static int LastRealVanillaCost { get; private set; }
+
     private static void Postfix(ref int __result)
     {
+        if (__result > 0)
+            LastRealVanillaCost = __result;
+
         if (EconomyOptions.LandExpansionCostPercent == 100 || __result <= 0)
             return;
 
-        var scaled = (int)System.Math.Round(__result * (EconomyOptions.LandExpansionCostPercent / 100f));
-        __result = System.Math.Max(1, scaled);
+        __result = EconomyOptions.ScaleAmount(__result, EconomyOptions.LandExpansionCostPercent / 100f);
+    }
+}
+
+/// <summary>
+/// Real fix for the display/charge mismatch described above: refunds the discounted difference
+/// after ConfirmExpansion() charges the player the full real vanilla amount (confirmed live -
+/// see LandExpansionCostScalePatch's doc comment). Relies on GetExpansionCost() having been
+/// queried at least once (to display the price) before the player could click confirm, which
+/// normal UI flow guarantees - if that assumption ever fails, LastRealVanillaCost stays 0 or
+/// stale and this simply refunds nothing rather than refunding the wrong amount. Uses
+/// SaveMgr.AddMetaGold, the same call already proven safe for every other gold grant in this
+/// mod - land expansion only ever costs Gold, never the other three resources.
+/// </summary>
+[HarmonyPatch(typeof(BaseGridMgr), nameof(BaseGridMgr.ConfirmExpansion))]
+internal static class LandExpansionCostRefundPatch
+{
+    private static void Postfix()
+    {
+        if (EconomyOptions.LandExpansionCostPercent == 100)
+            return;
+
+        var vanillaCost = LandExpansionCostScalePatch.LastRealVanillaCost;
+        if (vanillaCost <= 0)
+            return;
+
+        var scaledCost = EconomyOptions.ScaleAmount(vanillaCost, EconomyOptions.LandExpansionCostPercent / 100f);
+        var refund = vanillaCost - scaledCost;
+        if (refund <= 0)
+            return;
+
+        SaveMgr.I?.AddMetaGold(refund);
+        LocationHooks.Log?.Msg(
+            $"[EconomyOptions] land_expansion_cost_percent={EconomyOptions.LandExpansionCostPercent}: " +
+            $"charged real vanilla cost {vanillaCost} Gold, refunded {refund} Gold.");
     }
 }
 

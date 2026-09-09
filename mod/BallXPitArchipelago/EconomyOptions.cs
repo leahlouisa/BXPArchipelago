@@ -15,13 +15,14 @@ namespace BallXPitArchipelago;
 /// both are confirmed working correctly.
 ///
 /// Building PLACEMENT cost (building_cost_percent's effect on what a new building costs to
-/// place, as opposed to upgrade) is handled entirely in EconomyHooks.cs's
-/// BuildingPlacementCostRefundPatch - see that class's doc comment. This class deliberately
-/// never touches BuildingInfo.BuildCost (a raw IL2CPP field accessor - confirmed live,
-/// including by MelonLoader's own "is a field accessor, it can't be patched" log line at patch
-/// time, that rewriting its data reliably freezes the game the first time a real purchase tries
-/// to spend the rewritten cost, unconditionally, down to a single-resource 8 Gold purchase on a
-/// brand new save - see git history around the v0.2.2 hotfix for the full investigation).
+/// place) is handled by ApplyBuildingCostScaling below - direct data mutation of
+/// BuildingInfo.BuildCost, not a Harmony patch on anything. See that method's doc comment for
+/// why this turned out to be safe after all, despite a whole session's investigation initially
+/// blaming it for a freeze that was actually caused by something else entirely (Harmony patches
+/// on SaveMgr's resource-mutation methods - see EconomyHooks.cs's class doc comment and git
+/// history for the full story). The one hard rule that investigation left behind: NEVER
+/// Harmony-patch SaveMgr.SpendResources/SpendGold/AddResources/AddMetaGold, for any reason,
+/// ever - direct field/property writes (like this class does) are fine.
 ///
 /// Falls back to vanilla's real values if slot data is missing, malformed, or not yet loaded,
 /// rather than granting 0 or throwing - same defensive pattern as ApConnection.IsDeathLinkEnabled.
@@ -31,6 +32,8 @@ internal static class EconomyOptions
     private const int DefaultWoodStoneWheatFillerAmount = 50;
     private const int DefaultGoldFillerAmount = 200;
     private const int DefaultCostPercent = 100;
+
+    private static bool _buildCostScalingApplied;
 
     internal static int WoodFillerAmount { get; private set; } = DefaultWoodStoneWheatFillerAmount;
     internal static int StoneFillerAmount { get; private set; } = DefaultWoodStoneWheatFillerAmount;
@@ -84,12 +87,12 @@ internal static class EconomyOptions
     }
 
     /// <summary>
-    /// Scales an EXISTING Cost's Num array in place - never constructs a replacement Cost and
-    /// never reassigns BuildingInfo.BuildCost to a different object. See this class's doc
-    /// comment for why that distinction turned out to matter: replacing BuildCost with a
-    /// different Cost instance froze the game on a completely unrelated-looking call
-    /// (SaveMgr.SpendResources with a normal nonzero amount) for any building whose cost had
-    /// been replaced this way, 100% of the time, confirmed live.
+    /// Scales an EXISTING Cost's Num array in place, never constructing a replacement Cost or
+    /// reassigning the field/property that points at it - avoids any risk of some other part of
+    /// the game holding a stale reference to a Cost object we've since abandoned. Used both for
+    /// upgrade cost (EconomyHooks.cs's BuildingUpgradeCostScalePatch, on a fresh throwaway Cost
+    /// each call) and placement cost (ApplyBuildingCostScaling below, on the real shared
+    /// BuildingInfo.BuildCost instance).
     /// </summary>
     internal static void ScaleCostInPlace(Cost cost, float scale)
     {
@@ -98,6 +101,53 @@ internal static class EconomyOptions
             num[i] = ScaleAmount(num[i], scale);
 
         cost.Num = num;
+    }
+
+    /// <summary>
+    /// Rewrites every BuildingInfo.BuildCost in place (via ScaleCostInPlace, never replacing the
+    /// object) to building_cost_percent% of its real vanilla amount. Call periodically from
+    /// Mod.OnUpdate() once InfoDB is ready (same pattern as BlueprintShuffle's InfoDB-dependent
+    /// applies) - guarded by _buildCostScalingApplied so a percent of 100 never touches InfoDB
+    /// at all, and a non-default percent only ever gets applied once per process (re-applying
+    /// would compound the discount, since this mutates the field's own data rather than
+    /// replacing a return value).
+    ///
+    /// This is pure data mutation - BuildingInfo.BuildCost is a raw IL2CPP field accessor with
+    /// no real backing method (confirmed live: MelonLoader itself logs "is a field accessor, it
+    /// can't be patched" for it), so there's nothing to Harmony-patch here, and nothing about
+    /// this touches SaveMgr.SpendResources/SpendGold/AddResources/AddMetaGold - vanilla's own
+    /// purchase pipeline runs completely unmodified against this pre-scaled data, exactly as it
+    /// always has for every building's cost, scaled or not. An entire session's investigation
+    /// into a building-placement freeze wrongly blamed this exact mechanism (both this in-place
+    /// version and an earlier replace-based one); the freeze was actually caused by unrelated
+    /// Harmony patches on SaveMgr's resource-mutation methods (see EconomyHooks.cs and git
+    /// history) that happened to be introduced around the same time - once those were found and
+    /// removed, reviving this turned out to work fine.
+    /// </summary>
+    internal static void ApplyBuildingCostScaling()
+    {
+        if (_buildCostScalingApplied || BuildingCostPercent == 100 || InfoDB.I == null)
+            return;
+
+        var buildings = InfoDB.I.Buildings;
+        if (buildings == null)
+            return;
+
+        var scale = BuildingCostPercent / 100f;
+        var count = 0;
+        foreach (var info in buildings)
+        {
+            if (info == null || info.BuildCost == null)
+                continue;
+
+            ScaleCostInPlace(info.BuildCost, scale);
+            count++;
+        }
+
+        _buildCostScalingApplied = true;
+        LocationHooks.Log?.Msg(
+            $"[EconomyOptions] Rewrote BuildCost in place for {count} buildings to " +
+            $"{BuildingCostPercent}% of vanilla.");
     }
 
     private static int ReadInt(JObject obj, string key, int fallback)

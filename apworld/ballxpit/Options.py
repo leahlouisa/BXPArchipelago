@@ -37,15 +37,11 @@ class FillerGoldAmount(Range):
 
 class BuildingCostPercent(Range):
     """
-    Scales every building's UPGRADE cost (Wood/Stone/Wheat/Gold) to this percent of its real
-    vanilla cost - e.g. 25 means an upgrade that costs 800 Gold/200 Wheat in vanilla instead
-    costs 200 Gold/50 Wheat. 100 = unchanged vanilla cost. Does not affect land expansion (see
-    land_expansion_cost_percent) or elevator upgrade gear costs, which always stay vanilla.
-
-    KNOWN LIMITATION (as of this apworld version): this only scales UPGRADE cost, not a
-    building's initial placement/blueprint cost - every approach tried for placement cost caused
-    real, confirmed crashes, so it's disabled there until a safe design is found. Buildings cost
-    their full vanilla amount to place regardless of this setting.
+    Scales every building's cost (Wood/Stone/Wheat/Gold) - both its initial placement/blueprint
+    cost and its UPGRADE cost - to this percent of its real vanilla cost. E.g. 25 means an
+    upgrade that costs 800 Gold/200 Wheat in vanilla instead costs 200 Gold/50 Wheat. 100 =
+    unchanged vanilla cost. Does not affect land expansion (see land_expansion_cost_percent) or
+    elevator upgrade gear costs, which always stay vanilla.
     """
     display_name = "Building Cost Percent"
     range_start = 1

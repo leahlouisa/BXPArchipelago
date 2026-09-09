@@ -79,6 +79,7 @@ public static class ApConnection
         BlueprintShuffle.PopulateCharHousingBuildings();
         LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
         EconomyOptions.ApplyFromSlotData(success.SlotData);
+        EconomyOptions.ApplyBuildingCostScaling();
 
         // No session.Items.ItemReceived subscription: that event fires on the network
         // thread, and item application (SaveMgr/IL2CPP calls) isn't safe off the main
