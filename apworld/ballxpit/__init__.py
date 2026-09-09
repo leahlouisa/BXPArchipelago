@@ -1,7 +1,8 @@
-from BaseClasses import Tutorial
+from BaseClasses import ItemClassification, Tutorial
 from worlds.AutoWorld import WebWorld, World
 
 from .Items import (
+    ELEVATOR_GATING_CHARACTER_COUNT,
     PROGRESSIVE_LEVEL_ACCESS_COUNT,
     PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME,
     BallXPitItem,
@@ -53,12 +54,26 @@ class BallXPitWorld(World):
         for name in early_blueprint_item_names:
             self.multiworld.early_items[self.player][name] = 1
 
+        # Which ELEVATOR_GATING_CHARACTER_COUNT of the 21 characters are progression is
+        # picked per-seed here (self.random, not Python's global random - deterministic per
+        # player/seed, matching every other per-seed choice AP makes) rather than fixed in
+        # Items.py's static item_table - see that file's comment on why WHICH 5 doesn't
+        # matter to Rules.py's access rule, only that some 5 are guaranteed reachable.
+        self.progression_character_names = set(
+            self.random.sample(character_item_names, ELEVATOR_GATING_CHARACTER_COUNT)
+        )
+
     def create_regions(self) -> None:
         create_regions(self)
 
     def create_item(self, name: str) -> BallXPitItem:
         data = item_table[name]
-        return BallXPitItem(name, data.classification, data.code, self.player)
+        classification = (
+            ItemClassification.progression
+            if name in self.progression_character_names
+            else data.classification
+        )
+        return BallXPitItem(name, classification, data.code, self.player)
 
     def create_items(self) -> None:
         items = []

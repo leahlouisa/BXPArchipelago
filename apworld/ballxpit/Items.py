@@ -61,30 +61,32 @@ item_table: Dict[str, ItemData] = {}
 # engage with that system to get a "real" unlock, which the user explicitly doesn't want -
 # so it's left completely untouched, same as vanilla, with no item and no location.
 #
-# 5 of the 21 ARE progression, though (user caught this gap live, then confirmed the exact
-# mechanism from real play experience): Elevator Upgrade locations require having played
-# with more than just the starting character - gears for a given upgrade can ONLY be earned
-# in the one specific preceding level (not farmed from any already-unlocked level - e.g. the
-# final upgrade's 5 gears can only come from beating Clouds, never from replaying
-# Graveyard), so the final upgrade genuinely needs 4 received characters (5 total, including
-# the always-free starting one) per the wiki's escalating cost schedule - this is an exact
-# requirement, not an approximation. See Rules.py's _set_elevator_upgrade_rules for the full
-# reasoning - it gates on state.has_from_list(character_item_names, player, K), which only
-# the fill algorithm can honor if at least K of the 21 are guaranteed reachable via
-# progression placement. Which 5 doesn't matter (nothing else distinguishes them) - 4 needed
-# + 1 margin, matching this apworld's established practice of shipping a small buffer above
-# exact break-even (see _set_land_expansion_rules).
-_ELEVATOR_GATING_CHARACTER_ENUMS = {"kRecaller", "kItchyFinger", "kTunneller", "kTiptoer", "kCogitator"}
+# ELEVATOR_GATING_CHARACTER_COUNT of the 21 need to be progression, though (user caught this
+# gap live, then confirmed the exact mechanism from real play experience): Elevator Upgrade
+# locations require having played with more than just the starting character - gears for a
+# given upgrade can ONLY be earned in the one specific preceding level (not farmed from any
+# already-unlocked level - e.g. the final upgrade's 5 gears can only come from beating
+# Clouds, never from replaying Graveyard), so the final upgrade genuinely needs 4 received
+# characters (5 total, including the always-free starting one) per the wiki's escalating
+# cost schedule - this is an exact requirement, not an approximation. See Rules.py's
+# _set_elevator_upgrade_rules for the full reasoning - it gates on
+# state.has_from_list(character_item_names, player, K), which only the fill algorithm can
+# honor if at least K of the 21 are guaranteed reachable via progression placement.
+#
+# WHICH 5 doesn't matter to that rule (nothing else distinguishes them, it just checks "any K
+# of the full 21-name list") - so which characters get the progression slots is chosen
+# per-seed, not fixed here. Every character starts "useful" in this static table;
+# BallXPitWorld.generate_early() promotes a random ELEVATOR_GATING_CHARACTER_COUNT of them to
+# progression per player (self.random, so different seeds - even for the same player - land
+# on a different set), and create_item() applies that override. 4 needed + 1 margin, matching
+# this apworld's established practice of shipping a small buffer above exact break-even (see
+# _set_land_expansion_rules).
+ELEVATOR_GATING_CHARACTER_COUNT = 5
 
 for _c in _game_data["characters"]:
     if _c["enum"] == "kInfluencer":
         continue
-    _char_classification = (
-        ItemClassification.progression
-        if _c["enum"] in _ELEVATOR_GATING_CHARACTER_ENUMS
-        else ItemClassification.useful
-    )
-    item_table[f"Character: {_c['display']}"] = ItemData(_c["id"], _char_classification)
+    item_table[f"Character: {_c['display']}"] = ItemData(_c["id"], ItemClassification.useful)
 
 # Blueprints in BLUEPRINT_POOLS_BY_LEVEL are progression, not useful: Rules.py chains each
 # level's pool into a dependency ladder (position N requires position N-1's item, since the
