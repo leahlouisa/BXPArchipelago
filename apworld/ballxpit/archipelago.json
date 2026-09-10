@@ -1,4 +1,8 @@
 {
   "game": "Ball x Pit",
-  "authors": "leahlouisa"
+  "world_version": "0.2.4",
+  "minimum_ap_version": "0.6.6",
+  "authors": ["leahlouisa"],
+  "version": 7,
+  "compatible_version": 7
 }
