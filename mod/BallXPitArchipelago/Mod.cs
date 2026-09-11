@@ -2,7 +2,7 @@ using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.2.5", "leahlouisa")]
+[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.2.6", "leahlouisa")]
 [assembly: MelonGame("Kenny Sun", "BALL x PIT")]
 
 namespace BallXPitArchipelago;
