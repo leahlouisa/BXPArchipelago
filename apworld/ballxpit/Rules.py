@@ -1,5 +1,6 @@
 from BaseClasses import ItemClassification, LocationProgressType
 
+from .Balls import required_access_by_ball
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL, TROPHY_BUILDING_BY_LEVEL
 from .CharHousing import CHAR_HOUSING, CHAR_HOUSING_HOME_LEVEL_GUESS, CHAR_HOUSING_NONPOOLED
 from .Items import (
@@ -10,6 +11,8 @@ from .Items import (
     character_item_names,
 )
 from .Locations import (
+    active_ball_location_names,
+    ball_location_to_enum,
     blueprint_pool_location_names,
     char_housing_location_names,
     complete_level_location_names,
@@ -64,6 +67,7 @@ def set_rules(world) -> None:
     _set_trophy_rules(world)
     _set_char_housing_rules(world)
     _set_elevator_upgrade_rules(world)
+    _set_evosanity_rules(world)
 
     # Goal: be able to attempt (and therefore, in practice, complete) all 8 biomes. Actual
     # in-game completion is signaled by the mod calling session.SetGoalAchieved() once all
@@ -71,6 +75,13 @@ def set_rules(world) -> None:
     # to guarantee the seed is solvable. Holding every copy of the progressive item implies
     # every level is individually reachable too (position 7's requirement subsumes all
     # smaller positions), so this alone is equivalent to the old state.has_all(...) check.
+    #
+    # Deliberately identical for BOTH goal settings. goal=evosanity means "every evolved ball
+    # AND all 8 biomes", and holding all 7 copies already implies every biome is reachable and
+    # therefore every ball obtainable (no ball needs anything beyond biome access - see
+    # Balls.py), so there's nothing extra for the generator to require. The goal option only
+    # changes WHEN THE MOD reports the win, not what the generator has to guarantee; it's
+    # exported via fill_slot_data so LocationHooks.cs can apply it.
     multiworld.completion_condition[player] = lambda state: state.has(
         PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, PROGRESSIVE_LEVEL_ACCESS_COUNT
     )
@@ -388,3 +399,51 @@ def _set_elevator_upgrade_rules(world) -> None:
             return True
 
         location.access_rule = rule
+
+
+def _set_evosanity_rules(world) -> None:
+    """
+    Gates each evosanity location on being able to reach the biomes its ball transitively needs.
+
+    Only 7 of the 90 balls are gated by vanilla at all, one per biome for the first 7 biomes in
+    LEVEL_UNLOCK_ORDER (Vast Void unlocks nothing) - so a ball's real requirement is whichever of
+    those 7 appear in its cheapest recipe tree. Balls.required_access_by_ball does that traversal;
+    this function supplies the pricing (_level_access_positions) and applies the result, keeping
+    level-ordering knowledge in this file only. 42 of the 69 evolved balls come out needing
+    nothing, which is what gives the fill algorithm a large pool of immediately-reachable
+    locations to work with.
+
+    These rules are intentionally CONSERVATIVE in one known respect. A character hands out their
+    starting ball regardless of whether that ball is unlocked yet (e.g. the Carouser starts with
+    Charm, which normally needs Clouds), and the randomizer can deliver a character long before
+    the matching biome - so in real play some of these locations become available earlier than the
+    rule claims. That direction is safe: over-strict rules can never make a seed unwinnable, only
+    under-strict ones can. And it's exactly right for the single case where it matters - Satan is
+    the only ball in the whole roster needing a gated base ball TWICE (Charm, via Incubus +
+    Succubus), and a character supplies just one instance, so Satan genuinely does require the
+    real Charm unlock. Modelling the character shortcut would therefore add risk and complexity to
+    gain nothing but slightly earlier availability on 68 locations.
+
+    Nothing here depends on evosanity_jumpstart: the 12 buildings it grants only change how FAST
+    evolutions come, never which are possible (confirmed with the user), so they're not a logical
+    prerequisite for anything.
+    """
+    multiworld = world.multiworld
+    player = world.player
+
+    active = active_ball_location_names(world)
+    if not active:
+        return
+
+    required_access = required_access_by_ball(_level_access_positions())
+
+    for loc_name in active:
+        ball_enum = ball_location_to_enum[loc_name]
+        position = required_access[ball_enum]
+        location = multiworld.get_location(loc_name, player)
+        if position:
+            location.access_rule = lambda state, n=position: state.has(
+                PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME, player, n
+            )
+        else:
+            location.access_rule = lambda state: True

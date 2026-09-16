@@ -14,6 +14,16 @@ public class ApState
     public string SeedName { get; set; } = "";
     public int AppliedItemCount { get; set; }
 
+    /// <summary>
+    /// Whether evosanity_jumpstart's one-time resource grant has already been applied for this
+    /// seed. The 12 jumpstart BUILDINGS need no tracking of their own - they're precollected AP
+    /// items, so AppliedItemCount already covers them - but the resources aren't items at all
+    /// (see the apworld's fill_slot_data), so without this they'd be re-granted on every launch.
+    /// Reset alongside AppliedItemCount when a new seed is detected, since a new seed means a new
+    /// save and a fresh entitlement to the grant.
+    /// </summary>
+    public bool JumpstartApplied { get; set; }
+
     private static string PathFor(string slot)
     {
         // MelonLoader's UserData folder, not next to the DLL in Mods\ - see ApConfig.cs's

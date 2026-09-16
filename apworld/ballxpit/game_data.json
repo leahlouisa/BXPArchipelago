@@ -1,5 +1,5 @@
 {
-  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked live against the game's own InfoDB.I.Buildings/BlueprintsByLevel data (see project memory) rather than the wiki, which has repeatedly disagreed with confirmed live data (wrong per-level placements for several buildings) and should not be trusted over a live dump. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces), computed as 900100 + the entry's ordinal position in the real BuildingType enum - so a later-added entry's id is fixed by its enum position, not by append order. Buildings confirmed to have BuildingInfo.IsInGame == false (real cut/unused content - granting them does nothing visible, and vanilla's own blueprint-drop logic silently skips them entirely, confirmed live) were dropped rather than guessed at. The 7 remaining kXIdol entries (display name '... Trophy') are the per-level first-completion reward buildings - confirmed real and live (granted automatically on first level completion). kMoonIdol (Void Trophy) is deliberately excluded and permanently suppressed by the mod regardless of AP connection state - it's repurposed as BlueprintShuffle's dedicated placeholder sentinel for the per-level discovery-chain mechanism (see BlueprintShuffle.cs), so its ownership flag must never be set by anything else; the building itself no longer exists as obtainable content in any seed. kWheatField/kForest/kBoulder were removed (not just 'unconfirmed' - confirmed real, but granted automatically as starter content the instant a new save is created, not through any real player action, so a 'Blueprint: X' check firing for them was disconnected from actual play - reported live and removed). kFarm/kLumberyard/kStoneMine/kGatherersHut were removed after discovering they're dead IsInGame==false enum values superseded by kIdleFarm/kIdleLumberyard/kIdleStoneMine/kIdleLauncher (same display names, the real currently-functioning buildings) - the old entries were permanently unreachable locations. 16 additional real buildings (kMasseuse, kIdleManagement, the 6 stat buildings, kIdleLauncher, kCobbler, kIdleFarm/kIdleLumberyard/kIdleStoneMine, kHovel, kBrickHouse, kLogCabin) were added after being found live in InfoDB.I.Buildings/BlueprintsByLevel but missing from this file. Do not renumber surviving entries if this file is regenerated again - only append or drop.",
+  "_comment": "Generated from decompiled Ball X Pit enums, cross-checked live against the game's own InfoDB.I.Buildings/BlueprintsByLevel data (see project memory) rather than the wiki, which has repeatedly disagreed with confirmed live data (wrong per-level placements for several buildings) and should not be trusted over a live dump. 'id' values are a frozen ID registry shared by the ballxpit apworld's item_name_to_id/location_name_to_id (same numeric id used for both the item and location of a given entry - safe since AP keeps those in separate namespaces), computed as 900100 + the entry's ordinal position in the real BuildingType enum - so a later-added entry's id is fixed by its enum position, not by append order. Buildings confirmed to have BuildingInfo.IsInGame == false (real cut/unused content - granting them does nothing visible, and vanilla's own blueprint-drop logic silently skips them entirely, confirmed live) were dropped rather than guessed at. The 7 remaining kXIdol entries (display name '... Trophy') are the per-level first-completion reward buildings - confirmed real and live (granted automatically on first level completion). kMoonIdol (Void Trophy) is deliberately excluded and permanently suppressed by the mod regardless of AP connection state - it's repurposed as BlueprintShuffle's dedicated placeholder sentinel for the per-level discovery-chain mechanism (see BlueprintShuffle.cs), so its ownership flag must never be set by anything else; the building itself no longer exists as obtainable content in any seed. kWheatField/kForest/kBoulder were removed (not just 'unconfirmed' - confirmed real, but granted automatically as starter content the instant a new save is created, not through any real player action, so a 'Blueprint: X' check firing for them was disconnected from actual play - reported live and removed). kFarm/kLumberyard/kStoneMine/kGatherersHut were removed after discovering they're dead IsInGame==false enum values superseded by kIdleFarm/kIdleLumberyard/kIdleStoneMine/kIdleLauncher (same display names, the real currently-functioning buildings) - the old entries were permanently unreachable locations. 16 additional real buildings (kMasseuse, kIdleManagement, the 6 stat buildings, kIdleLauncher, kCobbler, kIdleFarm/kIdleLumberyard/kIdleStoneMine, kHovel, kBrickHouse, kLogCabin) were added after being found live in InfoDB.I.Buildings/BlueprintsByLevel but missing from this file. Do not renumber surviving entries if this file is regenerated again - only append or drop. The 'balls' section is generated from a live [BALLDUMP] log by shared/gen_balls_from_dump.py (never hand-edited, never taken from the wiki) - ids are 900800 + the ball's HeroType ordinal, an append-only range like every other section here. Balls have LOCATIONS but no ITEMS: the 7 biome-gated base balls ('req_level' non-null) deliberately stay vanilla rather than becoming AP grants, so nothing needs an item id, but the id still comes from the frozen registry in case that ever changes. 'merged' true means an evolved ball (69 of them) and false a base ball (21); 'recipes' is a list of COMPLETE ALTERNATIVE recipes, not slots of interchangeable ingredients - kAssassin's [[kHeavy,kGhost],[kHeavy,kDark]] means \"Iron+Ghost OR Iron+Dark\", so an access rule takes the cheapest recipe and requires every ingredient within it. 'min_version' is a post-launch content marker (0 = shipped at launch; 30 of the 90 are non-zero) and is recorded but not currently used for anything - all 90 balls are IsInGame==True in a current install.",
   "characters": [
     {
       "enum": "kRecaller",
@@ -554,6 +554,1250 @@
       "enum": "kDesert",
       "display": "Desert",
       "id": 900307
+    }
+  ],
+  "balls": [
+    {
+      "enum": "kBurn",
+      "display": "Burn",
+      "id": 900800,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kLightning",
+      "display": "Lightning",
+      "id": 900801,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kFreeze",
+      "display": "Freeze",
+      "id": 900802,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kLaserHorz",
+      "display": "Laser (Horizontal)",
+      "id": 900803,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kLaserVert",
+      "display": "Laser (Vertical)",
+      "id": 900804,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kPoison",
+      "display": "Poison",
+      "id": 900805,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kBomb",
+      "display": "Bomb",
+      "id": 900806,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBurn",
+          "kHeavy"
+        ]
+      ]
+    },
+    {
+      "enum": "kBleed",
+      "display": "Bleed",
+      "id": 900807,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kEarthquake",
+      "display": "Earthquake",
+      "id": 900808,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kGhost",
+      "display": "Ghost",
+      "id": 900809,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kLaserCross",
+      "display": "Holy Laser",
+      "id": 900810,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLaserHorz",
+          "kLaserVert"
+        ]
+      ]
+    },
+    {
+      "enum": "kVampire",
+      "display": "Vampire",
+      "id": 900811,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kBroodMother",
+      "display": "Brood Mother",
+      "id": 900812,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kHeavy",
+      "display": "Iron",
+      "id": 900813,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kVampireLord",
+      "display": "Vampire Lord",
+      "id": 900814,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kVampire",
+          "kBleed"
+        ],
+        [
+          "kVampire",
+          "kDark"
+        ]
+      ]
+    },
+    {
+      "enum": "kWraith",
+      "display": "Wraith",
+      "id": 900815,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kFreeze",
+          "kGhost"
+        ]
+      ]
+    },
+    {
+      "enum": "kAssassin",
+      "display": "Assassin",
+      "id": 900816,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kHeavy",
+          "kGhost"
+        ],
+        [
+          "kHeavy",
+          "kDark"
+        ]
+      ]
+    },
+    {
+      "enum": "kMagma",
+      "display": "Magma",
+      "id": 900817,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBurn",
+          "kEarthquake"
+        ]
+      ]
+    },
+    {
+      "enum": "kEggSac",
+      "display": "Egg Sac",
+      "id": 900818,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kLightningRod",
+      "display": "Lightning Rod",
+      "id": 900819,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLightning",
+          "kHeavy"
+        ]
+      ]
+    },
+    {
+      "enum": "kSpiderQueen",
+      "display": "Spider Queen",
+      "id": 900820,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBroodMother",
+          "kEggSac"
+        ]
+      ]
+    },
+    {
+      "enum": "kSwamp",
+      "display": "Swamp",
+      "id": 900821,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kPoison",
+          "kEarthquake"
+        ]
+      ]
+    },
+    {
+      "enum": "kBlizzard",
+      "display": "Blizzard",
+      "id": 900822,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kFreeze",
+          "kLightning"
+        ],
+        [
+          "kFreeze",
+          "kWind"
+        ]
+      ]
+    },
+    {
+      "enum": "kFreezeRay",
+      "display": "Freeze Ray",
+      "id": 900823,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kFreeze",
+          "kLaserHorz"
+        ],
+        [
+          "kFreeze",
+          "kLaserVert"
+        ]
+      ]
+    },
+    {
+      "enum": "kLeech",
+      "display": "Leech",
+      "id": 900824,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBroodMother",
+          "kBleed"
+        ]
+      ]
+    },
+    {
+      "enum": "kMosquito",
+      "display": "Mosquito Swarm",
+      "id": 900825,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kVampire",
+          "kEggSac"
+        ]
+      ]
+    },
+    {
+      "enum": "kMosquitoKing",
+      "display": "Mosquito King",
+      "id": 900826,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kVampire",
+          "kBroodMother"
+        ]
+      ]
+    },
+    {
+      "enum": "kNosferatu",
+      "display": "Nosferatu",
+      "id": 900827,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kVampireLord",
+          "kSpiderQueen",
+          "kMosquitoKing"
+        ]
+      ]
+    },
+    {
+      "enum": "kNuke",
+      "display": "Nuclear Bomb",
+      "id": 900828,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBomb",
+          "kPoison"
+        ]
+      ]
+    },
+    {
+      "enum": "kVirus",
+      "display": "Virus",
+      "id": 900829,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kGhost",
+          "kPoison"
+        ],
+        [
+          "kCell",
+          "kPoison"
+        ],
+        [
+          "kBleed",
+          "kPoison"
+        ]
+      ]
+    },
+    {
+      "enum": "kWind",
+      "display": "Wind",
+      "id": 900830,
+      "merged": false,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kInferno",
+      "display": "Inferno",
+      "id": 900831,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBurn",
+          "kWind"
+        ],
+        [
+          "kBurn",
+          "kTime"
+        ]
+      ]
+    },
+    {
+      "enum": "kCharm",
+      "display": "Charm",
+      "id": 900832,
+      "merged": false,
+      "req_level": "kClouds",
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kSuccubus",
+      "display": "Succubus",
+      "id": 900833,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kCharm",
+          "kVampire"
+        ]
+      ]
+    },
+    {
+      "enum": "kBerserk",
+      "display": "Berserk",
+      "id": 900834,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kCharm",
+          "kBurn"
+        ],
+        [
+          "kCharm",
+          "kBleed"
+        ]
+      ]
+    },
+    {
+      "enum": "kShotgun",
+      "display": "Shotgun",
+      "id": 900835,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kHeavy",
+          "kEggSac"
+        ]
+      ]
+    },
+    {
+      "enum": "kLight",
+      "display": "Light",
+      "id": 900836,
+      "merged": false,
+      "req_level": "kDesert",
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kSun",
+      "display": "Sun",
+      "id": 900837,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBurn",
+          "kLight"
+        ]
+      ]
+    },
+    {
+      "enum": "kLaserBeam",
+      "display": "Laser Beam",
+      "id": 900838,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLaserHorz",
+          "kLight"
+        ],
+        [
+          "kLaserVert",
+          "kLight"
+        ]
+      ]
+    },
+    {
+      "enum": "kDark",
+      "display": "Dark",
+      "id": 900839,
+      "merged": false,
+      "req_level": "kGraveyard",
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kPhantom",
+      "display": "Phantom",
+      "id": 900840,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kDark",
+          "kGhost"
+        ]
+      ]
+    },
+    {
+      "enum": "kSacrifice",
+      "display": "Sacrifice",
+      "id": 900841,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBleed",
+          "kDark"
+        ]
+      ]
+    },
+    {
+      "enum": "kIncubus",
+      "display": "Incubus",
+      "id": 900842,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kCharm",
+          "kDark"
+        ]
+      ]
+    },
+    {
+      "enum": "kSatan",
+      "display": "Satan",
+      "id": 900843,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kIncubus",
+          "kSuccubus"
+        ]
+      ]
+    },
+    {
+      "enum": "kFlash",
+      "display": "Flash",
+      "id": 900844,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLightning",
+          "kLight"
+        ]
+      ]
+    },
+    {
+      "enum": "kCell",
+      "display": "Cell",
+      "id": 900845,
+      "merged": false,
+      "req_level": "kShroom",
+      "min_version": 0,
+      "recipes": []
+    },
+    {
+      "enum": "kEggSacSac",
+      "display": "Voluptuous Egg Sac",
+      "id": 900846,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kEggSac",
+          "kCell"
+        ]
+      ]
+    },
+    {
+      "enum": "kMaggot",
+      "display": "Maggot",
+      "id": 900847,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kCell",
+          "kBroodMother"
+        ]
+      ]
+    },
+    {
+      "enum": "kGlacier",
+      "display": "Glacier",
+      "id": 900848,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kFreeze",
+          "kEarthquake"
+        ],
+        [
+          "kFreeze",
+          "kStone"
+        ]
+      ]
+    },
+    {
+      "enum": "kStorm",
+      "display": "Storm",
+      "id": 900849,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLightning",
+          "kWind"
+        ]
+      ]
+    },
+    {
+      "enum": "kFrozenFlame",
+      "display": "Frozen Flame",
+      "id": 900850,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBurn",
+          "kFreeze"
+        ]
+      ]
+    },
+    {
+      "enum": "kBlackHole",
+      "display": "Black Hole",
+      "id": 900851,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kDark",
+          "kSun"
+        ],
+        [
+          "kTime",
+          "kSun"
+        ]
+      ]
+    },
+    {
+      "enum": "kRadiationBeam",
+      "display": "Radiation Beam",
+      "id": 900852,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLaserHorz",
+          "kPoison"
+        ],
+        [
+          "kLaserHorz",
+          "kCell"
+        ],
+        [
+          "kLaserVert",
+          "kCell"
+        ],
+        [
+          "kLaserVert",
+          "kPoison"
+        ]
+      ]
+    },
+    {
+      "enum": "kNoxious",
+      "display": "Noxious",
+      "id": 900853,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kPoison",
+          "kWind"
+        ],
+        [
+          "kDark",
+          "kWind"
+        ]
+      ]
+    },
+    {
+      "enum": "kFlicker",
+      "display": "Flicker",
+      "id": 900854,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kLight",
+          "kDark"
+        ]
+      ]
+    },
+    {
+      "enum": "kLovestruck",
+      "display": "Lovestruck",
+      "id": 900855,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kCharm",
+          "kLight"
+        ],
+        [
+          "kCharm",
+          "kLightning"
+        ],
+        [
+          "kCharm",
+          "kTime"
+        ]
+      ]
+    },
+    {
+      "enum": "kHemorrhage",
+      "display": "Hemorrhage",
+      "id": 900856,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kBleed",
+          "kHeavy"
+        ],
+        [
+          "kBleed",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kSandstorm",
+      "display": "Sandstorm",
+      "id": 900857,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kEarthquake",
+          "kWind"
+        ],
+        [
+          "kStone",
+          "kWind"
+        ]
+      ]
+    },
+    {
+      "enum": "kOvergrowth",
+      "display": "Overgrowth",
+      "id": 900858,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kEarthquake",
+          "kCell"
+        ]
+      ]
+    },
+    {
+      "enum": "kSoulSucker",
+      "display": "Soul Sucker",
+      "id": 900859,
+      "merged": true,
+      "req_level": null,
+      "min_version": 0,
+      "recipes": [
+        [
+          "kVampire",
+          "kGhost"
+        ]
+      ]
+    },
+    {
+      "enum": "kMosquitoKingdom",
+      "display": "Mosquito Kingdom",
+      "id": 900860,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kMosquitoKing",
+          "kMosquito"
+        ]
+      ]
+    },
+    {
+      "enum": "kLightningBug",
+      "display": "Lightning Bug",
+      "id": 900861,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kLightning",
+          "kBroodMother"
+        ]
+      ]
+    },
+    {
+      "enum": "kHeartSwallower",
+      "display": "Heart Swallower",
+      "id": 900862,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kBleed",
+          "kGhost"
+        ]
+      ]
+    },
+    {
+      "enum": "kDarkFlame",
+      "display": "Banished Flame",
+      "id": 900863,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kDark",
+          "kBurn"
+        ]
+      ]
+    },
+    {
+      "enum": "kArmageddon",
+      "display": "Armageddon",
+      "id": 900864,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kInferno",
+          "kStorm"
+        ]
+      ]
+    },
+    {
+      "enum": "kFlesh",
+      "display": "Flesh",
+      "id": 900865,
+      "merged": false,
+      "req_level": "kSavanna",
+      "min_version": 3,
+      "recipes": []
+    },
+    {
+      "enum": "kVenom",
+      "display": "Venom",
+      "id": 900866,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kPoison",
+          "kFreeze"
+        ]
+      ]
+    },
+    {
+      "enum": "kZombie",
+      "display": "Zombie",
+      "id": 900867,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kVampire",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kTumor",
+      "display": "Tumor",
+      "id": 900868,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kRadiationBeam",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kFleshMound",
+      "display": "Flesh Mound",
+      "id": 900869,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kBroodMother",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kFireworks",
+      "display": "Fireworks",
+      "id": 900870,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kBurn",
+          "kEggSac"
+        ]
+      ]
+    },
+    {
+      "enum": "kSniper",
+      "display": "Sniper",
+      "id": 900871,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kShotgun",
+          "kAssassin"
+        ]
+      ]
+    },
+    {
+      "enum": "kDrill",
+      "display": "Drill",
+      "id": 900872,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kEarthquake",
+          "kHeavy"
+        ]
+      ]
+    },
+    {
+      "enum": "kStone",
+      "display": "Stone",
+      "id": 900873,
+      "merged": false,
+      "req_level": "kSnowy",
+      "min_version": 1,
+      "recipes": []
+    },
+    {
+      "enum": "kBrimstone",
+      "display": "Brimstone",
+      "id": 900874,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kStone",
+          "kBurn"
+        ],
+        [
+          "kPoison",
+          "kBurn"
+        ]
+      ]
+    },
+    {
+      "enum": "kLandslide",
+      "display": "Landslide",
+      "id": 900875,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kStone",
+          "kEarthquake"
+        ]
+      ]
+    },
+    {
+      "enum": "kOffspring",
+      "display": "Offspring",
+      "id": 900876,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kCell",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kSteel",
+      "display": "Steel",
+      "id": 900877,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kHeavy",
+          "kStone"
+        ]
+      ]
+    },
+    {
+      "enum": "kCatapult",
+      "display": "Catapult",
+      "id": 900878,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kStone",
+          "kEggSac"
+        ]
+      ]
+    },
+    {
+      "enum": "kPetrify",
+      "display": "Petrify",
+      "id": 900879,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kStone",
+          "kFlesh"
+        ]
+      ]
+    },
+    {
+      "enum": "kTime",
+      "display": "Time",
+      "id": 900880,
+      "merged": false,
+      "req_level": "kHell",
+      "min_version": 2,
+      "recipes": []
+    },
+    {
+      "enum": "kErosion",
+      "display": "Erosion",
+      "id": 900881,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kTime",
+          "kWind"
+        ]
+      ]
+    },
+    {
+      "enum": "kTimeBomb",
+      "display": "Time Bomb",
+      "id": 900882,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kTime",
+          "kBomb"
+        ]
+      ]
+    },
+    {
+      "enum": "kTimeFreeze",
+      "display": "Timestop",
+      "id": 900883,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kTime",
+          "kFreeze"
+        ]
+      ]
+    },
+    {
+      "enum": "kWarp",
+      "display": "Warp",
+      "id": 900884,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kTime",
+          "kLight"
+        ]
+      ]
+    },
+    {
+      "enum": "kXRay",
+      "display": "X Ray",
+      "id": 900885,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kLaserCross",
+          "kLaserBeam"
+        ]
+      ]
+    },
+    {
+      "enum": "kLaserCutter",
+      "display": "Laser Cutter",
+      "id": 900886,
+      "merged": true,
+      "req_level": null,
+      "min_version": 1,
+      "recipes": [
+        [
+          "kLaserHorz",
+          "kSteel"
+        ],
+        [
+          "kLaserVert",
+          "kSteel"
+        ]
+      ]
+    },
+    {
+      "enum": "kReaper",
+      "display": "Reaper",
+      "id": 900887,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kSoulSucker",
+          "kHeartSwallower"
+        ]
+      ]
+    },
+    {
+      "enum": "kElemental",
+      "display": "Elemental",
+      "id": 900888,
+      "merged": true,
+      "req_level": null,
+      "min_version": 3,
+      "recipes": [
+        [
+          "kBurn",
+          "kWind",
+          "kFreeze",
+          "kEarthquake"
+        ]
+      ]
+    },
+    {
+      "enum": "kBanshee",
+      "display": "Banshee",
+      "id": 900889,
+      "merged": true,
+      "req_level": null,
+      "min_version": 2,
+      "recipes": [
+        [
+          "kPhantom",
+          "kWraith"
+        ]
+      ]
     }
   ]
 }

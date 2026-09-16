@@ -79,6 +79,7 @@ public static class ApConnection
         BlueprintShuffle.PopulateCharHousingBuildings();
         LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
         EconomyOptions.ApplyFromSlotData(success.SlotData);
+        EvosanityOptions.ApplyFromSlotData(success.SlotData);
         EconomyOptions.ApplyBuildingCostScaling();
 
         // No session.Items.ItemReceived subscription: that event fires on the network

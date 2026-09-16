@@ -23,3 +23,25 @@
 - Which biomes/levels you can access
 
 Your goal is to gain access to and complete all 8 biomes.
+
+## Evosanity (optional)
+
+Set `evosanity` in your YAML to add a check for every unique ball you discover:
+
+- `none` (default) - no ball checks.
+- `evolutions` - 69 checks, one per evolved ball (the ones you make by merging level-3 balls).
+- `all_balls` - those 69 plus 21 for the base balls: every ball entry in the encyclopedia.
+
+Checks fire the moment you discover a ball, mid-run. Balls already discovered on your current
+save are checked as soon as you connect, so **start evosanity on a fresh save** unless you want
+a pile of checks immediately.
+
+Set `goal: evosanity` to make discovering all 69 evolved balls part of winning, on top of
+beating all 8 biomes. Expect a much longer game than the default goal.
+
+`evosanity_jumpstart: true` starts you with the 12 buildings that speed evolutions up, plus
+resources to place them. It never changes which evolutions are possible, and deliberately grants
+no biome access.
+
+Fused balls (the thousands of arbitrary two-ball combinations) are not included - only the named
+evolved balls that get their own encyclopedia entry.

@@ -74,6 +74,9 @@ public static class ItemReceiver
             _log.Msg($"New seed detected (was '{_state.SeedName}', now '{seedName}') - resetting applied-item progress.");
             _state.SeedName = seedName;
             _state.AppliedItemCount = 0;
+            // A new seed means a new save, and therefore a fresh entitlement to the jumpstart
+            // grant - see ApState.JumpstartApplied.
+            _state.JumpstartApplied = false;
         }
 
         Drain(items);
@@ -93,6 +96,11 @@ public static class ItemReceiver
         var all = items.AllItemsReceived;
 
         RecomputeInMemoryState(all);
+
+        // Before any items: the jumpstart grant is what makes the 12 precollected blueprints
+        // actually placeable, so applying it first means a player never sees the buildings arrive
+        // with nothing to build them with.
+        ApplyJumpstartIfNeeded();
 
         // Running count of "Progressive Level Access" copies seen so far, as of (and
         // including) the item about to be applied - lets ApplyPersistent report which
@@ -125,6 +133,80 @@ public static class ItemReceiver
     {
         if (items != null)
             Drain(items);
+    }
+
+    /// <summary>
+    /// evosanity_jumpstart's one-time resource grant. The 12 buildings it comes with are ordinary
+    /// precollected AP items and need nothing here - AP delivers them through the normal
+    /// received-items stream, so ApplyPersistent's "Blueprint: X" branch handles them like any
+    /// other blueprint. Resources aren't items though (they gate nothing in logic, and keeping
+    /// them out of the pool keeps the apworld's item/location balance simple), so they're granted
+    /// directly here and tracked by ApState.JumpstartApplied so a relaunch or reconnect doesn't
+    /// hand out another pile.
+    ///
+    /// Uses SaveMgr.AddResources - the same call the Wood/Stone/Wheat/Gold filler items already
+    /// use, and one of the methods proven safe to CALL (the hard rule from the placement-freeze
+    /// saga is never to PATCH it - see EconomyHooks.cs).
+    /// </summary>
+    private static void ApplyJumpstartIfNeeded()
+    {
+        if (_state.JumpstartApplied || EconomyOptions.JumpstartResources == null)
+            return;
+
+        // Same guard as the rest of Drain: SaveMgr is a scene singleton that doesn't exist yet
+        // when we first connect. Leave the flag unset and let the next tick retry.
+        if (SaveMgr.I == null)
+            return;
+
+        var granted = new List<string>();
+        foreach (var entry in EconomyOptions.JumpstartResources)
+        {
+            if (entry.Value <= 0)
+                continue;
+
+            var resourceType = entry.Key switch
+            {
+                "Wood" => ResourceType.kWood,
+                "Stone" => ResourceType.kStone,
+                "Wheat" => ResourceType.kWheat,
+                "Gold" => ResourceType.kGold,
+                _ => (ResourceType?)null,
+            };
+
+            if (resourceType == null)
+            {
+                _log.Warning($"[Jumpstart] Unknown resource '{entry.Key}' in slot data - skipping it.");
+                continue;
+            }
+
+            IsApplyingItem = true;
+            try
+            {
+                SaveMgr.I.AddResources(resourceType.Value, entry.Value, false, false);
+            }
+            catch (Exception e)
+            {
+                // Don't set JumpstartApplied - retry on the next tick rather than silently
+                // shorting the player the rest of the grant.
+                _log.Error($"[Jumpstart] Failed to grant {entry.Value} {entry.Key}, will retry: {e}");
+                return;
+            }
+            finally
+            {
+                IsApplyingItem = false;
+            }
+
+            granted.Add($"{entry.Value} {entry.Key}");
+        }
+
+        _state.JumpstartApplied = true;
+        _state.Save();
+
+        if (granted.Count > 0)
+        {
+            _log.Msg($"[Jumpstart] Granted starting resources: {string.Join(", ", granted)}.");
+            ApGui.ShowToast("Evosanity jumpstart: " + string.Join(", ", granted));
+        }
     }
 
     private static void RecomputeInMemoryState(ReadOnlyCollection<ItemInfo> all)
@@ -187,18 +269,23 @@ public static class ItemReceiver
             return true;
         }
 
-        if (itemName is "Wood" or "Stone" or "Wheat" or "Gold")
+        // Plain filler, plus the larger "bundle" denominations evosanity's extra locations are
+        // padded with (Items.py's BUNDLE_FILLER_ITEM_IDS). A bundle is the same resource at
+        // filler_bundle_multiplier times the amount - derived rather than given its own option per
+        // resource, so there's only one knob to explain.
+        var isBundle = itemName is "Wood Crate" or "Stone Crate" or "Wheat Crate" or "Gold Cache";
+        if (isBundle || itemName is "Wood" or "Stone" or "Wheat" or "Gold")
         {
             var resourceType = itemName switch
             {
-                "Wood" => ResourceType.kWood,
-                "Stone" => ResourceType.kStone,
-                "Wheat" => ResourceType.kWheat,
-                "Gold" => ResourceType.kGold,
+                "Wood" or "Wood Crate" => ResourceType.kWood,
+                "Stone" or "Stone Crate" => ResourceType.kStone,
+                "Wheat" or "Wheat Crate" => ResourceType.kWheat,
+                "Gold" or "Gold Cache" => ResourceType.kGold,
                 _ => throw new InvalidOperationException(),
             };
             // Yaml-configurable (Options.py filler_*_amount) - see EconomyOptions.cs.
-            var amount = resourceType switch
+            var baseAmount = resourceType switch
             {
                 ResourceType.kWood => EconomyOptions.WoodFillerAmount,
                 ResourceType.kStone => EconomyOptions.StoneFillerAmount,
@@ -206,11 +293,25 @@ public static class ItemReceiver
                 ResourceType.kGold => EconomyOptions.GoldFillerAmount,
                 _ => throw new InvalidOperationException(),
             };
+            var amount = isBundle ? baseAmount * EconomyOptions.FillerBundleMultiplier : baseAmount;
+
+            // The toast says "Received: 150 Wood", not "Received: 150 Wood Crate" - the amount
+            // already conveys that it's the big one, and naming the resource keeps every filler
+            // toast reading the same way.
+            var toastResource = itemName switch
+            {
+                "Wood Crate" => "Wood",
+                "Stone Crate" => "Stone",
+                "Wheat Crate" => "Wheat",
+                "Gold Cache" => "Gold",
+                _ => itemName,
+            };
+
             return TryApplyGuarded(
                 () => SaveMgr.I.AddResources(resourceType, amount, false, false),
                 $"Granted {amount} {resourceType}",
                 itemName,
-                toastText: $"Received: {amount} {itemName}");
+                toastText: $"Received: {amount} {toastResource}");
         }
 
         _log.Warning($"Unrecognized item: {itemName}");

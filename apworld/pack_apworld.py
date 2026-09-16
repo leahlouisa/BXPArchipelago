@@ -24,6 +24,13 @@ DEST = os.path.join(os.path.dirname(__file__), "ballxpit.apworld")
 DIR_MODE = 0o40755 << 16  # stat.S_IFDIR | 0o755, shifted into external_attr's high word
 FILE_MODE = 0o100644 << 16  # stat.S_IFREG | 0o644
 
+# Never ship build/editor droppings. __pycache__ in particular is easy to create by accident -
+# importing a module from apworld/ballxpit/ to test it locally leaves one behind, and it silently
+# ended up inside a packaged .apworld once. Stale .pyc files next to their .py are at best dead
+# weight and at worst confusing when debugging which code actually shipped.
+EXCLUDED_DIRS = {"__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache"}
+EXCLUDED_SUFFIXES = (".pyc", ".pyo")
+
 
 def add_directory(zf: zipfile.ZipFile, arcname: str) -> None:
     info = zipfile.ZipInfo(arcname + "/")
@@ -37,12 +44,15 @@ def main() -> None:
 
     with zipfile.ZipFile(DEST, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as zf:
         for dirpath, dirnames, filenames in os.walk(SRC_DIR):
-            dirnames.sort()
+            # In-place so os.walk doesn't descend into them at all.
+            dirnames[:] = sorted(d for d in dirnames if d not in EXCLUDED_DIRS)
             rel_dir = os.path.relpath(dirpath, os.path.dirname(SRC_DIR))
             arc_dir = rel_dir.replace(os.sep, "/")
             add_directory(zf, arc_dir)
 
             for filename in sorted(filenames):
+                if filename.endswith(EXCLUDED_SUFFIXES):
+                    continue
                 file_path = os.path.join(dirpath, filename)
                 arcname = f"{arc_dir}/{filename}"
                 info = zipfile.ZipInfo(arcname)

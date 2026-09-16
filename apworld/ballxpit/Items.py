@@ -37,6 +37,30 @@ FILLER_ITEM_IDS = {
     "Gold": 900404,
 }
 
+# Larger-denomination versions of the four above, granting filler_bundle_multiplier times as
+# much (see Options.py). They exist for variety rather than for balance: evosanity adds up to 90
+# locations while adding no items of its own, so those pool slots are filler either way, and
+# cycling eight names instead of four keeps the received-items feed from reading like a stuck
+# record. The mod maps each name back to its resource and multiplies - see ItemReceiver.cs.
+BUNDLE_FILLER_ITEM_IDS = {
+    "Wood Crate": 900405,
+    "Stone Crate": 900406,
+    "Wheat Crate": 900407,
+    "Gold Cache": 900408,
+}
+
+# The buildings evosanity_jumpstart hands over at the start. Confirmed against game_data.json
+# that all 12 are ordinary pooled blueprints and none is a CharHousing building, so precollecting
+# them can't unlock a character early - the only thing they affect is how fast evolutions come.
+# Confirmed with the user that none of them changes which evolutions are POSSIBLE (the Evolution
+# Chamber just starts new balls at level 2, etc.), so this option can never affect completability
+# and needs no access-rule handling at all.
+JUMPSTART_BUILDING_ENUMS = [
+    "kJeweler", "kNecromancer", "kMatchMaker", "kCandleMaker", "kGamblersDen", "kCasino",
+    "kWishingWell", "kEvolutionChamber", "kExorcist", "kGemsmith", "kBagMaker",
+    "kAdventurersGuild",
+]
+
 
 class BallXPitItem(Item):
     game = "Ball x Pit"
@@ -117,6 +141,9 @@ for _b in _game_data["buildings"]:
 for _name, _code in FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)
 
+for _name, _code in BUNDLE_FILLER_ITEM_IDS.items():
+    item_table[_name] = ItemData(_code, ItemClassification.filler)
+
 # Progressive item, not one item per level: every copy received unlocks whichever level is
 # next in the receiving player's own real difficulty order (Rules.py's LEVEL_UNLOCK_ORDER),
 # regardless of which level's placement in the multiworld actually delivered it. Confirmed
@@ -194,3 +221,19 @@ land_expansion_filler_item_names = [
 # the per-level item set 1:1). Location count is unaffected, so one more filler item keeps
 # the pool balanced.
 padding_filler_item_names = ["Gold"]
+
+# Blueprint items evosanity_jumpstart precollects (and therefore removes from the pool - see
+# __init__.py). Items keep their real building name, same as every other blueprint item.
+jumpstart_blueprint_item_names = [
+    f"Blueprint: {building_enum_to_display[_b]}" for _b in JUMPSTART_BUILDING_ENUMS
+]
+
+# Every filler name, plain then bundle, for cycling through when padding the pool out to match a
+# variable location count (evosanity's checks, plus replacements for any precollected blueprint).
+# Interleaved rather than plain-then-bundle so a player receiving a run of them sees both sizes
+# early instead of all four plain ones first.
+all_filler_item_names = [
+    name
+    for pair in zip(FILLER_ITEM_IDS, BUNDLE_FILLER_ITEM_IDS)
+    for name in pair
+]

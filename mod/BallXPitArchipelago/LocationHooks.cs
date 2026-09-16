@@ -59,6 +59,7 @@ internal static class LocationHooks
     private static readonly Dictionary<LevelType, bool> LastLevelComplete = new();
     private static bool _establishedLevelBaseline;
     private static bool _goalReported;
+    private static bool _reportedEvosanityGoalPending;
 
     internal static void SendCheck(string locationName)
     {
@@ -141,6 +142,10 @@ internal static class LocationHooks
             LastLevelComplete[lvl.Type] = lvl.DidComplete;
         }
 
+        // Evosanity ball discoveries (no-op unless the yaml turned it on) - see BallHooks.cs for
+        // why this is a poll rather than a patch on the merge path.
+        BallDiscoveryTracker.Poll();
+
         ReportGoalIfComplete();
     }
 
@@ -150,6 +155,12 @@ internal static class LocationHooks
     /// covers what the generator needs to guarantee a solvable seed, it can't detect real
     /// in-game completion itself. SetGoalAchieved cannot be un-sent, so _goalReported guards
     /// against calling it more than once per process (same lifetime as _establishedLevelBaseline).
+    ///
+    /// Under goal=evosanity the 8 biomes are necessary but not sufficient - every evolved ball has
+    /// to be discovered too (see BallHooks.cs). The generator's completion_condition is identical
+    /// for both goals, deliberately: holding all 7 Progressive Level Access copies already implies
+    /// every biome is reachable and therefore every ball obtainable, so the goal option only
+    /// changes what's checked HERE, not what the generator has to guarantee.
     /// </summary>
     private static void ReportGoalIfComplete()
     {
@@ -162,6 +173,24 @@ internal static class LocationHooks
                 return;
         }
 
+        if (EvosanityOptions.GoalIsEvosanity && !BallDiscoveryTracker.AllEvolvedBallsDiscovered())
+        {
+            // Every biome is beaten but the real goal isn't met yet. Logged once, not every tick:
+            // this is exactly the moment a player of the vanilla goal would have won, so saying
+            // nothing at all would look like the mod had failed to notice.
+            if (!_reportedEvosanityGoalPending)
+            {
+                _reportedEvosanityGoalPending = true;
+                var found = BallDiscoveryTracker.EvolvedBallsDiscovered();
+                var total = GameNames.EvolvedBalls.Count;
+                Log?.Msg(
+                    $"All 8 biomes complete, but goal=evosanity also needs every evolved ball: " +
+                    $"{found}/{total} discovered so far. Keep going!");
+            }
+
+            return;
+        }
+
         _goalReported = true;
 
         // SetGoalAchieved() -> SetClientState() -> Socket.SendPacket(...) is ALSO a blocking
@@ -172,7 +201,9 @@ internal static class LocationHooks
         // _goalReported already guards against ever calling it twice.
         var session = ApConnection.Session;
         System.Threading.Tasks.Task.Run(() => session.SetGoalAchieved());
-        Log?.Msg("All levels complete - reported goal achieved to Archipelago.");
+        Log?.Msg(EvosanityOptions.GoalIsEvosanity
+            ? $"All 8 biomes complete and all {GameNames.EvolvedBalls.Count} evolved balls discovered - reported goal achieved to Archipelago."
+            : "All levels complete - reported goal achieved to Archipelago.");
     }
 }
 

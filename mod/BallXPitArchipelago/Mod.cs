@@ -2,7 +2,7 @@ using Il2CppInterop.Runtime.Injection;
 using MelonLoader;
 using UnityEngine;
 
-[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.2.6", "leahlouisa")]
+[assembly: MelonInfo(typeof(BallXPitArchipelago.Mod), "Ball X Pit Archipelago", "0.3.0", "leahlouisa")]
 [assembly: MelonGame("Kenny Sun", "BALL x PIT")]
 
 namespace BallXPitArchipelago;
@@ -35,6 +35,12 @@ public class Mod : MelonMod
             return;
 
         LocationHooks.PollForChanges();
+
+#if DEBUG
+        // Deliberately outside the session gate - the evosanity data dump reads vanilla's own
+        // InfoDB/MetaSaveData and shouldn't need a generated seed just to run. Debug-only.
+        DebugBallDump.Tick();
+#endif
 
         if (ApConnection.Session != null)
         {

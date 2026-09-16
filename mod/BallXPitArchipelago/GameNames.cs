@@ -27,6 +27,14 @@ internal static partial class GameNames
     internal static string LevelDisplay(LevelType lt) =>
         LevelNames.TryGetValue(lt, out var s) ? s : lt.ToString();
 
+    /// <summary>
+    /// Ball (HeroType) display name - table in GameNames.Balls.Generated.cs. Same
+    /// don't-derive-from-the-enum-token rule as everything else here: kHeavy is "Iron",
+    /// kLaserCross is "Holy Laser", kNuke is "Nuclear Bomb".
+    /// </summary>
+    internal static string BallDisplay(HeroType ht) =>
+        BallNames.TryGetValue(ht, out var s) ? s : ht.ToString();
+
     internal static bool TryParseCharacter(string display, out CharType ct)
     {
         foreach (var kv in CharacterNames)

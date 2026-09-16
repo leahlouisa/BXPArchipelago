@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import DeathLink, PerGameCommonOptions, Range
+from Options import Choice, DeathLink, PerGameCommonOptions, Range, Toggle
 
 
 class FillerWoodAmount(Range):
@@ -61,12 +61,138 @@ class LandExpansionCostPercent(Range):
     default = 100
 
 
+class FillerBundleMultiplier(Range):
+    """
+    How much more a "bundle" filler item grants than its plain counterpart - a Wood Crate gives
+    this many times a Wood, a Gold Cache this many times a Gold. With the defaults (50 Wood, 200
+    Gold, multiplier 3) that's 150 Wood and 600 Gold.
+
+    Bundles exist purely for variety: evosanity adds up to 90 checks without adding any items of
+    its own, so the extra pool slots are filler, and eight filler names read better than four
+    when a lot of them are coming. Has no effect if evosanity is off.
+    """
+    display_name = "Filler Bundle Multiplier"
+    range_start = 2
+    range_end = 10
+    default = 3
+
+
+class Evosanity(Choice):
+    """
+    Adds a check for every unique ball you discover ("evosanity", in the spirit of Stardew
+    Valley's fishsanity/cooksanity).
+
+    none: off - no ball checks at all, exactly as previous versions.
+
+    evolutions: a check for each of the 69 EVOLVED balls, the ones you make by merging two or
+    more level-3 balls at the Fusion Reactor (Bomb, Frozen Flame, Nosferatu, Satan...). Each one
+    is also an encyclopedia entry. Fused balls are NOT included - those are the thousands of
+    arbitrary two-ball combinations, which the game doesn't track individually.
+
+    all_balls: the 69 evolved balls plus a check for each of the 21 BASE balls (Burn, Freeze,
+    Iron...), i.e. every ball entry in the in-game encyclopedia. 90 checks total.
+
+    Checks fire the moment a ball is discovered, mid-run - you don't have to finish the run.
+    Balls you have already discovered on this save are checked as soon as you connect.
+
+    Warning: this adds a lot of locations without adding any items, so most of what fills them is
+    filler. See filler_bundle_multiplier.
+    """
+    display_name = "Evosanity"
+    option_none = 0
+    option_evolutions = 1
+    option_all_balls = 2
+    default = 0
+
+
+class Goal(Choice):
+    """
+    What counts as winning.
+
+    all_biomes: beat all 8 biomes. The default, and what every previous version did.
+
+    evosanity: discover all 69 evolved balls AND beat all 8 biomes. A superset of all_biomes, not
+    an alternative to it - deliberately, because no ball is unlocked by beating the 8th biome
+    (Vast Void unlocks nothing at all), so "evolve everything" on its own would leave the hardest
+    biome skippable. Expect a much longer game: collecting every evolution means many runs, since
+    you can only carry a handful of balls at a time.
+
+    Setting this to evosanity does NOT turn evosanity checks on by itself - set evosanity too, or
+    the goal will simply have no checks associated with it.
+    """
+    display_name = "Goal"
+    option_all_biomes = 0
+    option_evosanity = 1
+    default = 0
+
+
+class EvosanityJumpstart(Toggle):
+    """
+    Start with the 12 buildings that make evolving easier, plus a pile of resources to place them
+    with: Jeweler, Necromancer, Matchmaker, Candle Maker, Gambler's Den, Casino, Wishing Well,
+    Evolution Chamber, Exorcist, Gemsmith, Bag Maker, and Adventurer's Guild.
+
+    These are normally late-game blueprints, and hunting for all 69 evolutions without them is a
+    slog. None of them changes which evolutions are POSSIBLE, only how quickly you reach them
+    (the Evolution Chamber, for instance, just starts every new ball at level 2), so this is
+    purely a pacing option and never affects whether a seed can be completed.
+
+    Deliberately does NOT grant biome access - that stays the randomizer's main progression, and
+    handing it over would let you skip most of the seed. Amounts are set by the jumpstart_*_amount
+    options; if you also use building_cost_percent to discount buildings, you'll need less.
+
+    Their blueprint items are removed from the item pool (you already have them) and replaced with
+    filler, so their locations still hold something worth finding.
+    """
+    display_name = "Evosanity Jumpstart"
+
+
+class JumpstartGoldAmount(Range):
+    """How much Gold evosanity_jumpstart grants. Ignored unless that option is on."""
+    display_name = "Jumpstart Gold Amount"
+    range_start = 0
+    range_end = 99999
+    default = 5000
+
+
+class JumpstartWoodAmount(Range):
+    """How much Wood evosanity_jumpstart grants. Ignored unless that option is on."""
+    display_name = "Jumpstart Wood Amount"
+    range_start = 0
+    range_end = 9999
+    default = 1000
+
+
+class JumpstartStoneAmount(Range):
+    """How much Stone evosanity_jumpstart grants. Ignored unless that option is on."""
+    display_name = "Jumpstart Stone Amount"
+    range_start = 0
+    range_end = 9999
+    default = 1000
+
+
+class JumpstartWheatAmount(Range):
+    """How much Wheat evosanity_jumpstart grants. Ignored unless that option is on."""
+    display_name = "Jumpstart Wheat Amount"
+    range_start = 0
+    range_end = 9999
+    default = 1000
+
+
 @dataclass
 class BallXPitOptions(PerGameCommonOptions):
     death_link: DeathLink
+    goal: Goal
+    evosanity: Evosanity
+    evosanity_jumpstart: EvosanityJumpstart
+    jumpstart_gold_amount: JumpstartGoldAmount
+    jumpstart_wood_amount: JumpstartWoodAmount
+    jumpstart_stone_amount: JumpstartStoneAmount
+    jumpstart_wheat_amount: JumpstartWheatAmount
     filler_wood_amount: FillerWoodAmount
     filler_stone_amount: FillerStoneAmount
     filler_wheat_amount: FillerWheatAmount
     filler_gold_amount: FillerGoldAmount
+    filler_bundle_multiplier: FillerBundleMultiplier
     building_cost_percent: BuildingCostPercent
     land_expansion_cost_percent: LandExpansionCostPercent

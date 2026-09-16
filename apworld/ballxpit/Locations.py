@@ -5,6 +5,7 @@ from typing import Dict
 
 from BaseClasses import Location
 
+from .Balls import BALL_DISPLAY, BALL_ID, BASE_BALL_ENUMS, EVOLVED_BALL_ENUMS
 from .BlueprintPools import BLUEPRINT_POOLS_BY_LEVEL
 from .CharHousing import CHAR_HOUSING_HOME_LEVEL_GUESS, CHAR_HOUSING_NONPOOLED
 from .Items import ELEVATOR_UPGRADE_COUNT, LAND_EXPANSION_COUNT, building_enum_to_id
@@ -119,3 +120,52 @@ character_location_names = [
     f"Character: {c['display']}" for c in _game_data["characters"] if c["enum"] != "kInfluencer"
 ]
 complete_level_location_names = [f"Complete Level: {l['display']}" for l in _game_data["levels"]]
+
+# Evosanity locations (see Balls.py and Options.py's Evosanity). Two names rather than one shared
+# convention because the two halves are genuinely different actions: an evolved ball is something
+# you deliberately construct out of level-3 components, a base ball is something you're simply
+# offered and take. Both are encyclopedia entries, which is the framing the option's "all_balls"
+# value describes.
+#
+# ALL 90 stay in location_table unconditionally, even though evosanity defaults to off: AP's data
+# package is static per game, so every name a seed might ever use has to be registered here with
+# a stable id. Whether a given seed actually USES them is decided in Regions.py, which only adds
+# the ones the option asks for. Ids come from game_data.json's frozen 900800+ registry.
+evolved_ball_location_names = [
+    f"Evolve: {BALL_DISPLAY[_b]}" for _b in EVOLVED_BALL_ENUMS
+]
+base_ball_location_names = [
+    f"Discover Ball: {BALL_DISPLAY[_b]}" for _b in BASE_BALL_ENUMS
+]
+
+# location name -> ball enum, so Rules.py can price each location without re-deriving the name.
+ball_location_to_enum: Dict[str, str] = {}
+for _b in EVOLVED_BALL_ENUMS:
+    _loc_name = f"Evolve: {BALL_DISPLAY[_b]}"
+    location_table[_loc_name] = LocationData(BALL_ID[_b])
+    ball_location_to_enum[_loc_name] = _b
+
+for _b in BASE_BALL_ENUMS:
+    _loc_name = f"Discover Ball: {BALL_DISPLAY[_b]}"
+    location_table[_loc_name] = LocationData(BALL_ID[_b])
+    ball_location_to_enum[_loc_name] = _b
+
+all_ball_location_names = evolved_ball_location_names + base_ball_location_names
+
+
+def active_ball_location_names(world) -> list:
+    """
+    Which ball locations this seed actually creates, per the evosanity option.
+
+    The single source of truth for that question: Regions.py uses it to decide what to populate
+    and Rules.py to decide what to gate, so the two can't drift into disagreeing (a rule set on a
+    location that was never created raises, and a location created without its rule would be
+    wrongly reachable from turn one).
+    """
+    evosanity = world.options.evosanity
+
+    if evosanity == evosanity.option_none:
+        return []
+    if evosanity == evosanity.option_evolutions:
+        return list(evolved_ball_location_names)
+    return list(all_ball_location_names)

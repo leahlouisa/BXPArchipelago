@@ -6,11 +6,13 @@ from .Items import (
     PROGRESSIVE_LEVEL_ACCESS_COUNT,
     PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME,
     BallXPitItem,
+    all_filler_item_names,
     blueprint_item_names,
     character_item_names,
     early_blueprint_item_names,
     elevator_upgrade_filler_item_names,
     item_table,
+    jumpstart_blueprint_item_names,
     land_expansion_filler_item_names,
     padding_filler_item_names,
 )
@@ -63,6 +65,23 @@ class BallXPitWorld(World):
             self.random.sample(character_item_names, ELEVATOR_GATING_CHARACTER_COUNT)
         )
 
+        # evosanity_jumpstart hands over the 12 evolution-helper buildings up front (see
+        # Options.py for why, and Items.py's JUMPSTART_BUILDING_ENUMS for which). Precollected
+        # rather than granted mod-side so AP itself knows the player holds them: their blueprint
+        # items come out of the pool in create_items() (replaced by filler, so their locations
+        # still hold something worth finding) and any access rule depending on them - each level's
+        # blueprint discovery chain gates position N on position N-1's item - sees them as held
+        # from the start, which is true.
+        #
+        # No mod-side change is needed for these: AP delivers starting inventory through the
+        # ordinary received-items stream, so ItemReceiver applies them exactly like any other
+        # blueprint item.
+        self.precollected_blueprint_names = (
+            set(jumpstart_blueprint_item_names) if self.options.evosanity_jumpstart else set()
+        )
+        for name in sorted(self.precollected_blueprint_names):
+            self.multiworld.push_precollected(self.create_item(name))
+
     def create_regions(self) -> None:
         create_regions(self)
 
@@ -78,11 +97,40 @@ class BallXPitWorld(World):
     def create_items(self) -> None:
         items = []
         items += [self.create_item(name) for name in character_item_names]
-        items += [self.create_item(name) for name in blueprint_item_names]
+        # Precollected blueprints are already in the player's starting inventory - creating them
+        # again here would put a second, redundant copy in the pool and overrun the location count.
+        items += [
+            self.create_item(name)
+            for name in blueprint_item_names
+            if name not in self.precollected_blueprint_names
+        ]
         items += [self.create_item(PROGRESSIVE_LEVEL_ACCESS_ITEM_NAME) for _ in range(PROGRESSIVE_LEVEL_ACCESS_COUNT)]
         items += [self.create_item(name) for name in land_expansion_filler_item_names]
         items += [self.create_item(name) for name in elevator_upgrade_filler_item_names]
         items += [self.create_item(name) for name in padding_filler_item_names]
+
+        # Everything above is a fixed set that balances the always-present locations exactly
+        # 1:1 (see Items.py's filler list comments for how that balance was arrived at). What's
+        # left is whatever THIS seed's options added or removed: evosanity's up-to-90 extra
+        # locations, which have no item category of their own, and the blueprint items pulled out
+        # above for being precollected. Both are covered by cycling real resource filler.
+        #
+        # Measured from the regions rather than recomputed from the options, so this stays correct
+        # if another conditional location category is ever added - the one thing it must never do
+        # is silently disagree with Regions.py about how many locations exist, which is a hard
+        # generation failure ("Item count must equal location count").
+        shortfall = len(self.multiworld.get_unfilled_locations(self.player)) - len(items)
+        if shortfall < 0:
+            raise AssertionError(
+                f"Ball x Pit built {len(items)} items for only {len(items) + shortfall} locations - "
+                "the fixed item set has outgrown the always-present locations, which means one of "
+                "Items.py's filler lists needs shrinking rather than padding here."
+            )
+        items += [
+            self.create_item(all_filler_item_names[i % len(all_filler_item_names)])
+            for i in range(shortfall)
+        ]
+
         self.multiworld.itempool += items
 
     def set_rules(self) -> None:
@@ -130,4 +178,26 @@ class BallXPitWorld(World):
             # can't affect seed completability either way.
             "building_cost_percent": int(self.options.building_cost_percent),
             "land_expansion_cost_percent": int(self.options.land_expansion_cost_percent),
+            # How much more a bundle filler item grants than its plain counterpart (Options.py's
+            # FillerBundleMultiplier) - ItemReceiver applies it rather than hardcoding a factor.
+            "filler_bundle_multiplier": int(self.options.filler_bundle_multiplier),
+            # "none" / "evolutions" / "all_balls" - which ball checks this seed created. The mod
+            # needs it so its discovery poll doesn't warn about locations absent from the data
+            # package, and so an all_balls seed also reports the 21 base-ball checks.
+            "evosanity": self.options.evosanity.current_key,
+            # "all_biomes" / "evosanity". Purely a runtime concern: the generator's
+            # completion_condition is identical either way (see Rules.py), and this is what tells
+            # LocationHooks.cs whether beating all 8 biomes is enough to call SetGoalAchieved or
+            # whether every evolved ball is also required.
+            "goal": self.options.goal.current_key,
+            # One-time resource grant for evosanity_jumpstart, or null when it's off. Not modelled
+            # as items: resources gate nothing in logic, and keeping them out of the pool keeps the
+            # item/location balance above from having to account for them. The mod applies this
+            # once per seed, tracked in ApState - see ItemReceiver.ApplyJumpstartIfNeeded.
+            "jumpstart_resources": {
+                "Gold": int(self.options.jumpstart_gold_amount),
+                "Wood": int(self.options.jumpstart_wood_amount),
+                "Stone": int(self.options.jumpstart_stone_amount),
+                "Wheat": int(self.options.jumpstart_wheat_amount),
+            } if self.options.evosanity_jumpstart else None,
         }
