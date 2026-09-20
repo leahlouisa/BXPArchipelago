@@ -77,6 +77,11 @@ public static class ItemReceiver
             // A new seed means a new save, and therefore a fresh entitlement to the jumpstart
             // grant - see ApState.JumpstartApplied.
             _state.JumpstartApplied = false;
+            // Undelivered run-scoped rewards belong to the old seed. The cursor reset above will
+            // replay the new seed's item history from 0 and re-queue whatever it contains, so
+            // carrying these over would hand out the old seed's debt on top of the new seed's.
+            _state.PendingLevelUps = 0;
+            _state.PendingFusers = 0;
         }
 
         Drain(items);
@@ -133,6 +138,39 @@ public static class ItemReceiver
     {
         if (items != null)
             Drain(items);
+    }
+
+    internal static int PendingLevelUps => _state?.PendingLevelUps ?? 0;
+
+    internal static int PendingFusers => _state?.PendingFusers ?? 0;
+
+    /// <summary>
+    /// Takes one pending run-scoped reward of the given kind, persisting the decrement immediately.
+    /// Saving on every consume (rather than batching) is deliberate: these are delivered one per
+    /// tick inside a live run, and a crash or force-quit mid-run shouldn't silently restore a
+    /// reward the player already got the benefit of. Returns false if none are pending, which is
+    /// the common case and costs nothing.
+    /// </summary>
+    internal static bool TryConsumePending(bool levelUp)
+    {
+        if (_state == null)
+            return false;
+
+        if (levelUp)
+        {
+            if (_state.PendingLevelUps <= 0)
+                return false;
+            _state.PendingLevelUps--;
+        }
+        else
+        {
+            if (_state.PendingFusers <= 0)
+                return false;
+            _state.PendingFusers--;
+        }
+
+        _state.Save();
+        return true;
     }
 
     /// <summary>
@@ -266,6 +304,28 @@ public static class ItemReceiver
                 ? $"Received: Progressive Level Access ({GameNames.LevelDisplay(unlockedLevel.Value)} unlocked!)"
                 : $"Received: {itemName}";
             ApGui.ShowToast(toast);
+            return true;
+        }
+
+        // Run-scoped rewards: queued rather than applied here, and the cursor advances either way.
+        //
+        // Deliberately NOT returning false to get ItemReceiver's retry behaviour. Drain() stops at
+        // the first item that fails to apply so nothing gets silently skipped, which is right for
+        // a blueprint but catastrophic here - receiving one of these while sitting in your base
+        // would stall every later item in the queue until you happened to start a run. Queueing
+        // separates "this item has been accounted for" from "its effect has landed", which is
+        // exactly the distinction a run-scoped reward needs.
+        if (itemName is "Free Level Up" or "Fusion Reactor")
+        {
+            if (itemName == "Free Level Up")
+                _state.PendingLevelUps++;
+            else
+                _state.PendingFusers++;
+
+            // Saved by the caller once the cursor advances past this item; saving here too would
+            // just double the writes.
+            _log.Msg($"Queued run-scoped reward: {itemName} (pending: {_state.PendingLevelUps} level-ups, {_state.PendingFusers} fusers).");
+            ApGui.ShowToast(RunScopedRewards.ToastFor(itemName));
             return true;
         }
 

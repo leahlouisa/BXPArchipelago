@@ -49,6 +49,32 @@ BUNDLE_FILLER_ITEM_IDS = {
     "Gold Cache": 900408,
 }
 
+# Run-scoped filler: helps only the run you're currently playing (or the next one you enter),
+# rather than adding permanently to the base economy. Added after a real report from live play -
+# an evosanity seed is mostly filler by construction, and a steady stream of resource grants was
+# both boring and genuinely inflationary, leaving the player far too rich to feel the building
+# economy at all.
+#
+# Both map onto ordinary vanilla operations, NOT GameCheatMgr.ApplyCheat (which has kLevelUp and
+# kGainFuser entries that would have been a one-line implementation, but almost certainly set
+# BattleSaveData.Cheated - AchMgr.ShouldCheckAch is the obvious consumer - and would suppress
+# Steam achievements for that run):
+#
+#   Free Level Up   -> PickupMgr.AddXP(TgtXP - CurXP), i.e. exactly one level, not an estimate
+#   Fusion Reactor  -> PickupMgr.DropPickup(playerPos, PickupType.kFuser)
+#
+# The Fusion Reactor is especially apt for evosanity: a fuser's three options are
+# FuserOptionType {kCombo, kEvo, kFreeUpgrades}, so one of them is literally the evolution
+# option this whole mode is about.
+#
+# Received while not in a run, these queue until the next one starts - see the mod's
+# RunScopedRewards.cs. They deliberately do NOT use ItemReceiver's retry path, which stops the
+# whole item queue at the first item that won't apply.
+RUN_SCOPED_FILLER_ITEM_IDS = {
+    "Free Level Up": 900409,
+    "Fusion Reactor": 900410,
+}
+
 # The buildings evosanity_jumpstart hands over at the start. Confirmed against game_data.json
 # that all 12 are ordinary pooled blueprints and none is a CharHousing building, so precollecting
 # them can't unlock a character early - the only thing they affect is how fast evolutions come.
@@ -144,6 +170,9 @@ for _name, _code in FILLER_ITEM_IDS.items():
 for _name, _code in BUNDLE_FILLER_ITEM_IDS.items():
     item_table[_name] = ItemData(_code, ItemClassification.filler)
 
+for _name, _code in RUN_SCOPED_FILLER_ITEM_IDS.items():
+    item_table[_name] = ItemData(_code, ItemClassification.filler)
+
 # Progressive item, not one item per level: every copy received unlocks whichever level is
 # next in the receiving player's own real difficulty order (Rules.py's LEVEL_UNLOCK_ORDER),
 # regardless of which level's placement in the multiworld actually delivered it. Confirmed
@@ -228,12 +257,26 @@ jumpstart_blueprint_item_names = [
     f"Blueprint: {building_enum_to_display[_b]}" for _b in JUMPSTART_BUILDING_ENUMS
 ]
 
-# Every filler name, plain then bundle, for cycling through when padding the pool out to match a
-# variable location count (evosanity's checks, plus replacements for any precollected blueprint).
-# Interleaved rather than plain-then-bundle so a player receiving a run of them sees both sizes
-# early instead of all four plain ones first.
-all_filler_item_names = [
+# The cycle used to pad the pool out to match a variable location count (evosanity's checks, plus
+# replacements for any precollected blueprint).
+#
+# Every other entry is run-scoped, so about half of all filler helps the run you're playing rather
+# than the permanent base economy - the fix for a real complaint from live play, where an
+# all_balls seed's ~100 filler items were both monotonous and left the player so resource-rich
+# that the building economy stopped mattering. Resource grants alternate plain/bundle within their
+# half so a player still sees both denominations early.
+#
+# 16 entries: 4 plain + 4 bundle resources, 8 run-scoped. An exact 50/50 split, and the length
+# means a long unbroken run of filler doesn't repeat the same item for a while.
+_RESOURCE_FILLER_CYCLE = [
     name
     for pair in zip(FILLER_ITEM_IDS, BUNDLE_FILLER_ITEM_IDS)
     for name in pair
+]
+_RUN_SCOPED_CYCLE = list(RUN_SCOPED_FILLER_ITEM_IDS)
+
+all_filler_item_names = [
+    name
+    for i, resource in enumerate(_RESOURCE_FILLER_CYCLE)
+    for name in (resource, _RUN_SCOPED_CYCLE[i % len(_RUN_SCOPED_CYCLE)])
 ]

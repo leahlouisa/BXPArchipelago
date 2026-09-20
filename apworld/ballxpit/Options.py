@@ -64,17 +64,18 @@ class LandExpansionCostPercent(Range):
 class FillerBundleMultiplier(Range):
     """
     How much more a "bundle" filler item grants than its plain counterpart - a Wood Crate gives
-    this many times a Wood, a Gold Cache this many times a Gold. With the defaults (50 Wood, 200
-    Gold, multiplier 3) that's 150 Wood and 600 Gold.
+    this many times a Wood, a Gold Cache this many times a Gold.
 
-    Bundles exist purely for variety: evosanity adds up to 90 checks without adding any items of
-    its own, so the extra pool slots are filler, and eight filler names read better than four
-    when a lot of them are coming. Has no effect if evosanity is off.
+    Defaults to 1, i.e. a Crate/Cache grants exactly what its plain version does and the two are
+    flavour rather than a real difference. That's deliberate: at the original default of 3, a
+    player running raised filler amounts (say 2000 Gold) was receiving 6000 Gold per Gold Cache,
+    which flooded the base economy badly enough that building costs stopped mattering. Raise it
+    if you want bundles to be a genuine windfall, but raise filler_*_amount OR this, not both.
     """
     display_name = "Filler Bundle Multiplier"
-    range_start = 2
+    range_start = 1
     range_end = 10
-    default = 3
+    default = 1
 
 
 class Evosanity(Choice):

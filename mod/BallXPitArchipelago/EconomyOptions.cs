@@ -33,7 +33,7 @@ internal static class EconomyOptions
     private const int DefaultWoodStoneWheatFillerAmount = 50;
     private const int DefaultGoldFillerAmount = 200;
     private const int DefaultCostPercent = 100;
-    private const int DefaultBundleMultiplier = 3;
+    private const int DefaultBundleMultiplier = 1;
 
     private static bool _buildCostScalingApplied;
 

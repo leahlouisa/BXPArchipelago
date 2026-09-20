@@ -53,6 +53,9 @@ public class Mod : MelonMod
             LevelUnlockOrder.ApplyFromSlotData(ApConnection.SlotData);
             BlueprintShuffle.ProcessPendingRefreshes();
             EconomyOptions.ApplyBuildingCostScaling();
+            // Delivers at most one queued run-scoped reward per tick, and only mid-run - see
+            // RunScopedRewards.cs for why they're queued rather than applied on receipt.
+            RunScopedRewards.Drain();
         }
     }
 }

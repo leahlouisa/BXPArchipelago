@@ -24,6 +24,20 @@ public class ApState
     /// </summary>
     public bool JumpstartApplied { get; set; }
 
+    /// <summary>
+    /// Run-scoped rewards received but not yet delivered, because they only mean anything inside
+    /// a run (see RunScopedRewards.cs). Persisted rather than held in memory so quitting between
+    /// receiving one and starting a run doesn't silently eat it.
+    ///
+    /// Counters, not a queue: the two kinds are independent and order between them doesn't
+    /// matter. Not reset on a new seed the way AppliedItemCount is - a pending reward is a debt
+    /// already incurred, and the cursor reset would re-deliver the items that created it anyway,
+    /// so zeroing here as well would double-count. ItemReceiver clears them explicitly instead.
+    /// </summary>
+    public int PendingLevelUps { get; set; }
+
+    public int PendingFusers { get; set; }
+
     private static string PathFor(string slot)
     {
         // MelonLoader's UserData folder, not next to the DLL in Mods\ - see ApConfig.cs's

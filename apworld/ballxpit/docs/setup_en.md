@@ -45,3 +45,17 @@ no biome access.
 
 Fused balls (the thousands of arbitrary two-ball combinations) are not included - only the named
 evolved balls that get their own encyclopedia entry.
+
+### Filler in an evosanity seed
+
+Evosanity adds up to 90 checks without adding any items of its own, so everything behind those
+checks is filler. Half of it is run-scoped rather than resources:
+
+- **Free Level Up** - exactly one level-up's worth of XP.
+- **Fusion Reactor** - drops a real fuser at your feet, which you still have to collect. One of a
+  fuser's three options is the evolution option, so these are especially useful here.
+
+Receive one while you're not in a level and it's held until you next enter one.
+
+If your seed leaves you swimming in resources, lower `filler_wood_amount` and friends rather than
+reaching for `filler_bundle_multiplier` - raising both at once compounds.
