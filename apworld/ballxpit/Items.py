@@ -220,14 +220,43 @@ _EARLY_BUILDING_ENUMS = [
 ]
 early_blueprint_item_names = [f"Blueprint: {building_enum_to_display[b]}" for b in _EARLY_BUILDING_ENUMS]
 
+_RUN_SCOPED_CYCLE = list(RUN_SCOPED_FILLER_ITEM_IDS)
+
+
+def _half_run_scoped(length: int, resource_cycle) -> list:
+    """
+    A filler list of exactly `length` names, alternating resource / run-scoped so half of it
+    helps only the current run.
+
+    Every filler list in this file goes through here (or through all_filler_item_names, which is
+    built on the same principle), so "about half of all filler is run-scoped" holds globally
+    rather than only for the filler evosanity adds. An earlier version interleaved only the
+    evosanity padding, which left the real figure at ~38% because the 32 always-present filler
+    items below were still all resources.
+
+    Length is preserved exactly - these lists are load-bearing for the item/location balance
+    (see __init__.py's create_items), so this only ever changes WHICH names appear, never how
+    many.
+    """
+    out = []
+    resource_idx = 0
+    run_scoped_idx = 0
+    for i in range(length):
+        if i % 2:
+            out.append(_RUN_SCOPED_CYCLE[run_scoped_idx % len(_RUN_SCOPED_CYCLE)])
+            run_scoped_idx += 1
+        else:
+            out.append(resource_cycle[resource_idx % len(resource_cycle)])
+            resource_idx += 1
+    return out
+
+
 # Padding to keep the item pool exactly matching the location count (see __init__.py) -
 # the "Elevator Upgrade #n" locations don't have a matching item category of their own
 # (they're new checks on an existing vanilla action, not gating anything), so filler covers
 # the gap. Cycled rather than all-one-type for a little variety.
 _filler_names_cycle = list(FILLER_ITEM_IDS.keys())
-elevator_upgrade_filler_item_names = [
-    _filler_names_cycle[i % len(_filler_names_cycle)] for i in range(ELEVATOR_UPGRADE_COUNT)
-]
+elevator_upgrade_filler_item_names = _half_run_scoped(ELEVATOR_UPGRADE_COUNT, _filler_names_cycle)
 
 # "Land Expansion #n" locations don't have a matching item category of their own either
 # (purchases stay unrestricted vanilla - see ConfirmExpansionLocationPatch in the mod, so
@@ -236,12 +265,13 @@ elevator_upgrade_filler_item_names = [
 # no fun at all for the player. Cycling real Wood/Stone/Wheat grants instead keeps the
 # same "nothing is logically gated here" honesty while still being a small treat to
 # receive. Gold deliberately excluded, unlike the elevator upgrade filler cycle above -
-# land expansion is themed around base-building resources, not currency.
+# land expansion is themed around base-building resources, not currency. That exclusion still
+# holds for the resource half; the run-scoped half interleaved through it is thematically neutral
+# (a free level-up isn't currency either).
 _land_expansion_filler_names_cycle = ["Wood", "Stone", "Wheat"]
-land_expansion_filler_item_names = [
-    _land_expansion_filler_names_cycle[i % len(_land_expansion_filler_names_cycle)]
-    for i in range(LAND_EXPANSION_COUNT)
-]
+land_expansion_filler_item_names = _half_run_scoped(
+    LAND_EXPANSION_COUNT, _land_expansion_filler_names_cycle
+)
 
 # One more padding item, for the same reason as the two filler lists above: switching from
 # 8 distinct "Level Access: X" items to PROGRESSIVE_LEVEL_ACCESS_COUNT (7) copies of one
@@ -249,7 +279,11 @@ land_expansion_filler_item_names = [
 # any more - it was never actually needed by anything, just previously placed to fill out
 # the per-level item set 1:1). Location count is unaffected, so one more filler item keeps
 # the pool balanced.
-padding_filler_item_names = ["Gold"]
+#
+# Run-scoped rather than the Gold it used to be, purely as the tie-breaker that makes the
+# always-present filler an exact 16/16 split: the 24 land-expansion items split 12/12 and the 7
+# elevator ones 4/3, leaving resources one ahead until this one lands on the other side.
+padding_filler_item_names = [_RUN_SCOPED_CYCLE[0]]
 
 # Blueprint items evosanity_jumpstart precollects (and therefore removes from the pool - see
 # __init__.py). Items keep their real building name, same as every other blueprint item.
@@ -273,10 +307,7 @@ _RESOURCE_FILLER_CYCLE = [
     for pair in zip(FILLER_ITEM_IDS, BUNDLE_FILLER_ITEM_IDS)
     for name in pair
 ]
-_RUN_SCOPED_CYCLE = list(RUN_SCOPED_FILLER_ITEM_IDS)
 
-all_filler_item_names = [
-    name
-    for i, resource in enumerate(_RESOURCE_FILLER_CYCLE)
-    for name in (resource, _RUN_SCOPED_CYCLE[i % len(_RUN_SCOPED_CYCLE)])
-]
+all_filler_item_names = _half_run_scoped(
+    len(_RESOURCE_FILLER_CYCLE) * 2, _RESOURCE_FILLER_CYCLE
+)
