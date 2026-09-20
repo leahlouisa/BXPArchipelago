@@ -164,28 +164,19 @@ internal static class LocationHooks
     /// </summary>
     private static void ReportGoalIfComplete()
     {
-        if (_goalReported || LastLevelComplete.Count < LevelCount)
+        if (_goalReported)
             return;
 
-        foreach (var complete in LastLevelComplete.Values)
+        if (!IsGoalMet(out var reason))
         {
-            if (!complete)
-                return;
-        }
-
-        if (EvosanityOptions.GoalIsEvosanity && !BallDiscoveryTracker.AllEvolvedBallsDiscovered())
-        {
-            // Every biome is beaten but the real goal isn't met yet. Logged once, not every tick:
-            // this is exactly the moment a player of the vanilla goal would have won, so saying
-            // nothing at all would look like the mod had failed to notice.
-            if (!_reportedEvosanityGoalPending)
+            // Every biome beaten but the real goal not met yet (the evosanity case) is worth
+            // saying out loud exactly once: it's the precise moment a player of the vanilla goal
+            // would have won, so silence would look like the mod had failed to notice. Every
+            // other "not met" reason is the ordinary mid-game state and says nothing.
+            if (AllLevelsComplete() && !_reportedEvosanityGoalPending)
             {
                 _reportedEvosanityGoalPending = true;
-                var found = BallDiscoveryTracker.EvolvedBallsDiscovered();
-                var total = GameNames.EvolvedBalls.Count;
-                Log?.Msg(
-                    $"All 8 biomes complete, but goal=evosanity also needs every evolved ball: " +
-                    $"{found}/{total} discovered so far. Keep going!");
+                Log?.Msg($"Goal not yet met: {reason}");
             }
 
             return;
@@ -204,6 +195,68 @@ internal static class LocationHooks
         Log?.Msg(EvosanityOptions.GoalIsEvosanity
             ? $"All 8 biomes complete and all {GameNames.EvolvedBalls.Count} evolved balls discovered - reported goal achieved to Archipelago."
             : "All levels complete - reported goal achieved to Archipelago.");
+    }
+
+    /// <summary>
+    /// The single source of truth for "has this slot actually won?", factored out of
+    /// ReportGoalIfComplete so the decision can be evaluated without the irreversible side effect
+    /// of reporting it. DebugGoalOverride's dry-run calls this exact method, so what it reports is
+    /// the real rule rather than a parallel reimplementation that could drift.
+    ///
+    /// `reason` explains a false result, for logging.
+    /// </summary>
+    internal static bool IsGoalMet(out string reason)
+    {
+        if (!AllLevelsComplete())
+        {
+            var done = 0;
+            foreach (var complete in LastLevelComplete.Values)
+            {
+                if (complete)
+                    done++;
+            }
+
+            reason = $"{done}/{LevelCount} biomes complete";
+            return false;
+        }
+
+        if (EvosanityOptions.GoalIsEvosanity && !BallDiscoveryTracker.AllEvolvedBallsDiscovered())
+        {
+            var found = BallDiscoveryTracker.EvolvedBallsDiscovered();
+            reason =
+                $"all {LevelCount} biomes complete, but goal=evosanity also needs every evolved " +
+                $"ball: {found}/{GameNames.EvolvedBalls.Count} discovered so far. Keep going!";
+            return false;
+        }
+
+        reason = EvosanityOptions.GoalIsEvosanity
+            ? $"all {LevelCount} biomes complete and all {GameNames.EvolvedBalls.Count} evolved balls discovered"
+            : $"all {LevelCount} biomes complete";
+        return true;
+    }
+
+    /// <summary>
+    /// Whether every biome has been genuinely beaten in-game. The baseline pass has to have seen
+    /// all of them at least once (LastLevelComplete is populated lazily from MetaSaveData), so a
+    /// short dictionary means "don't know yet", not "not complete".
+    /// </summary>
+    private static bool AllLevelsComplete()
+    {
+#if DEBUG
+        if (DebugGoalOverride.ForceAllLevelsComplete)
+            return true;
+#endif
+
+        if (LastLevelComplete.Count < LevelCount)
+            return false;
+
+        foreach (var complete in LastLevelComplete.Values)
+        {
+            if (!complete)
+                return false;
+        }
+
+        return true;
     }
 }
 

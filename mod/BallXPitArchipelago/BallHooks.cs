@@ -167,6 +167,11 @@ internal static class BallDiscoveryTracker
     /// </summary>
     internal static bool AllEvolvedBallsDiscovered()
     {
+#if DEBUG
+        if (DebugGoalOverride.ForceAllBallsDiscovered)
+            return true;
+#endif
+
         var stats = MetaSaveData.I?.HeroStats;
         if (stats == null)
             return false;

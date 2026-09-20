@@ -62,6 +62,12 @@ public class ApGui : MonoBehaviour
 
     private void OnGUI()
     {
+#if DEBUG
+        // Before anything else, so the goal-test hotkeys work whether or not the connect box has
+        // focus. Debug-only test harness - see DebugGoalOverride.cs.
+        DebugGoalOverride.HandleHotkeys(Event.current);
+#endif
+
         _toasts.RemoveAll(t => Time.time >= t.ExpireAt);
         if (_toasts.Count > 0)
             DrawToasts();
