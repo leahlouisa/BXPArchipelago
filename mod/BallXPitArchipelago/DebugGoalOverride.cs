@@ -18,10 +18,21 @@ namespace BallXPitArchipelago;
 /// Mod.OnUpdate is throttled to every 30th frame, where GetKeyDown's single-frame window would be
 /// missed most of the time):
 ///
-///   F9   dry-run: evaluate the real goal condition and log the verdict. Never reports anything
-///        to Archipelago, so it's safe to press at any time, on any seed.
+///   F9   dry-run: evaluate the real goal condition and log the verdict. F9 ITSELF reports nothing.
 ///   F10  toggle "pretend all 8 biomes are complete"
 ///   F11  toggle "pretend all 69 evolved balls are discovered"
+///
+/// WARNING, learned the hard way: F10 and F11 are NOT side-effect free, and an earlier version of
+/// this comment wrongly claimed the whole harness was safe on any seed. The overrides feed
+/// LocationHooks.AllLevelsComplete and BallDiscoveryTracker.AllEvolvedBallsDiscovered, which the
+/// REAL PollForChanges path also consults - so turning both on genuinely satisfies the goal and
+/// ReportGoalIfComplete fires within one poll tick (~0.5s), reporting to Archipelago for real.
+/// Confirmed live: F11 pressed at 21:24:45.243, goal reported at 21:24:45.644. SetGoalAchieved
+/// cannot be un-sent. USE A DISPOSABLE SEED.
+///
+/// That's a deliberate trade rather than something to fix: overrides that the real path ignored
+/// would be testing a parallel universe, which is exactly the divergence IsGoalMet exists to
+/// prevent. F9 alone is genuinely read-only; the toggles are the dangerous part.
 ///
 /// The intended test is entirely dry-run:
 ///   1. F10 on, F11 off, F9  -> must report NOT met, naming how many balls are still missing.
@@ -30,10 +41,9 @@ namespace BallXPitArchipelago;
 ///   2. F10 on, F11 on,  F9  -> must report met.
 ///   3. F10 off, F11 off, F9 -> must report NOT met, naming the biome count.
 ///
-/// Deliberately NO hotkey to actually fire SetGoalAchieved. That call cannot be un-sent - it would
-/// permanently mark the slot finished on the server - and the dry run already exercises the real
-/// decision method, which is the part that could be wrong. The reporting itself (the Task.Run and
-/// the guard flag) is unchanged code that has shipped since v0.1.
+/// There's no dedicated "fire the goal" hotkey because none is needed - step 2 above already does
+/// it as a side effect (see the warning). Step 1 is the one that actually matters and is safe in
+/// isolation: it's the regression the "goal is a superset" design exists to prevent.
 /// </summary>
 internal static class DebugGoalOverride
 {
