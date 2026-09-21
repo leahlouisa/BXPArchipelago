@@ -13,7 +13,7 @@ An [Archipelago](https://archipelago.gg) randomizer integration for [Ball X Pit]
 
 Complete all 8 biome levels. Optionally (`goal: evosanity`) also discover all 69 evolved balls — see "Evosanity" below.
 
-### Checks (140 by default, up to 230 with evosanity)
+### Checks (140 by default, up to 230 with evosanity - see the table below)
 
 - Unlocking a character (21 - see "What doesn't get randomized" below for the 22nd)
 - Unlocking a building blueprint (80), in three flavors:
@@ -42,19 +42,43 @@ Only 7 of the 90 balls are gated by anything in vanilla (one per biome, for the 
 Two caveats worth knowing before you pick it:
 
 - **It's long.** Collecting every evolution takes many runs, since you can only carry a handful of balls at a time and each ingredient must reach level 3.
-- **It's filler-heavy.** Evosanity adds up to 90 locations without adding any items of its own, so everything filling them is filler by construction. Half of it is the run-scoped Free Level Up / Fusion Reactor rewards rather than resources, which keeps it from being both monotonous and inflationary — but if you also raise `filler_*_amount`, expect to end up very rich.
+- **It's filler-heavy.** Evosanity adds up to 90 locations without adding any items of its own, so everything filling them is filler by construction. Half of that is the run-scoped Free Level Up / Fusion Reactor rewards rather than resources, which keeps it from being both monotonous and inflationary - but if you also raise `filler_*_amount`, expect to end up very rich.
 
-### Items (140 by default, always matching the check count exactly)
+### Items (always matching the check count exactly)
 
 - Characters (21) and Blueprints (80) - unlock that specific character/building directly, independent of however you'd normally earn it in vanilla. Unlocking a character doesn't require ever building their real housing building - receiving the item is enough.
 - Progressive Level Access (7 copies of one item) - each copy received unlocks whichever biome is next in your own real difficulty order (not the same as the order levels are listed in-game), regardless of when or from where it arrives in the multiworld; this is what actually gates progress toward the goal
 - Wood / Stone / Wheat / Gold - filler resource grants (land expansion purchases aren't gated by items in this randomizer, only by the vanilla resource cost - these checks just grant Wood/Stone/Wheat like any other filler)
-- Wood Crate / Stone Crate / Wheat Crate / Gold Cache - the same resources in a different denomination (`filler_bundle_multiplier` times as much, default 1x - i.e. flavour unless you raise it). Only appear when evosanity is on, whose extra locations are what needs the extra filler.
-- **Free Level Up** and **Fusion Reactor** - run-scoped rewards that help only the run you're currently playing, rather than piling more into the permanent base economy. Half of evosanity's added filler is these. If you receive one while you're not in a level, it's held and delivered as soon as you enter your next one.
-  - *Free Level Up* grants exactly enough XP for one level-up, no banked progress toward the next.
+- Wood Crate / Stone Crate / Wheat Crate / Gold Cache - the same resources in a different denomination (`filler_bundle_multiplier` times as much, default 1x - i.e. flavour unless you raise it). Only appear in seeds that need extra filler, i.e. with `evosanity` and/or `evosanity_jumpstart` on.
+- **Free Level Up** and **Fusion Reactor** - run-scoped rewards that help only the run you're currently playing, rather than piling more into the permanent base economy. **Half of all filler is these**, in every configuration. If you receive one while you're not in a level, it's held and delivered as soon as you're properly into your next one (including waiting out any Gemsmith/Antique Shop bonus-pick screen).
+  - *Free Level Up* grants a full level's worth of XP, so it's worth the same wherever you happen to be in the XP bar.
   - *Fusion Reactor* drops a real fuser pickup at your feet, exactly like a naturally-spawned one - you still have to collect it. Particularly welcome in an evosanity run, since one of a fuser's three options is the evolution option.
 
 Note that balls themselves are **not** items - evosanity contributes checks only. Ball unlocks stay exactly as they are in vanilla.
+
+### Counts by configuration
+
+Items always match checks exactly. `evosanity_jumpstart` moves 12 blueprints out of the pool into your starting inventory and backfills them with filler, so it changes the mix without changing the totals.
+
+| | `none` | `evolutions` | `all_balls` | `all_balls` + jumpstart |
+|---|---:|---:|---:|---:|
+| **Checks** | | | | |
+| Characters | 21 | 21 | 21 | 21 |
+| Building blueprints | 80 | 80 | 80 | 80 |
+| Complete a biome | 8 | 8 | 8 | 8 |
+| Elevator upgrades | 7 | 7 | 7 | 7 |
+| Land expansions | 24 | 24 | 24 | 24 |
+| Evolved balls | – | 69 | 69 | 69 |
+| Base balls | – | – | 21 | 21 |
+| **Total** | **140** | **209** | **230** | **230** |
+| **Items** | | | | |
+| Characters | 21 | 21 | 21 | 21 |
+| Building blueprints | 80 | 80 | 80 | 68 *(+12 to start)* |
+| Progressive Level Access | 7 | 7 | 7 | 7 |
+| Filler | 32 | 101 | 122 | 134 |
+| **Total** | **140** | **209** | **230** | **230** |
+
+Roughly half of the filler in any column is run-scoped (Free Level Up / Fusion Reactor) and half is resources; an odd filler total splits one off-centre.
 
 ### What doesn't get randomized
 
