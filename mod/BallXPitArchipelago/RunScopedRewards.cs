@@ -33,35 +33,68 @@ namespace BallXPitArchipelago;
 internal static class RunScopedRewards
 {
     /// <summary>
-    /// Set once the current run has stopped being playable - either beaten (GameMgr.MarkLevelComplete)
-    /// or ended (kEndingGame/kGameOver). Cleared when GameMgr goes away, i.e. on returning to base,
-    /// so the next run starts clean.
+    /// Whether a run is genuinely live right now. Turned ON only by an explicit
+    /// SetState(kEnteringLvl), and OFF by MarkLevelComplete or kEndingGame/kGameOver.
     ///
-    /// This exists because CurState == kPlaying turned out NOT to mean "the run is live" (confirmed
-    /// live, from a real lost reward). The end-of-run reward sequence bounces back through kPlaying
-    /// between each popup:
+    /// GameMgr.CurState CANNOT be used for this, in two separate ways, both confirmed live from
+    /// real lost rewards:
     ///
-    ///   21:20:42.766  MarkLevelComplete()          <- run is over here
-    ///   21:20:44.731  SetState(kFoundBlueprint)
-    ///   21:20:45.681  SetState(kPlaying)           <- and again at :51.915 and :55.732
-    ///   21:20:55.983  [dropped a Fusion Reactor]   <- our poll landed in one of those windows
-    ///   21:20:56.015  SetState(kEndingGame)
+    /// 1. kPlaying is GameState's FIRST enum value, so it is also default(GameState) == 0. A
+    ///    freshly-constructed GameMgr therefore reads as "playing" before anything has called
+    ///    SetState on it. That window is real and we landed in it:
     ///
-    /// so a fuser got dropped into a level that was already finished and was silently lost.
-    /// MarkLevelComplete fires 13 seconds before that, which makes it a reliable gate.
+    ///      21:02:03.075  SetState(kGameOver)        <- previous run ends
+    ///      21:03:22.729  [Free Level Up queued at base]
+    ///      21:06:51.903  [granted a free level up]  <- last real state was kGameOver!
+    ///      21:06:51.971  SetState(kEnteringLvl)     <- the run actually begins, 68ms LATER
+    ///
+    ///    Worse than merely early: UpgradeMgr/BattleSaveData still held the PREVIOUS run's values
+    ///    (TgtXP=1088, CurXP~1062 - the end state of the run that died at 21:02), so the XP went
+    ///    into objects the new run then reinitialised to zero. Granted into the void.
+    ///
+    /// 2. After a level is beaten, the end-of-run reward sequence bounces back through kPlaying
+    ///    between each popup:
+    ///
+    ///      21:20:42.766  MarkLevelComplete()        <- run is over here
+    ///      21:20:44.731  SetState(kFoundBlueprint)
+    ///      21:20:45.681  SetState(kPlaying)         <- and again at :51.915 and :55.732
+    ///      21:20:55.983  [dropped a Fusion Reactor] <- poll landed in one of those windows
+    ///      21:20:56.015  SetState(kEndingGame)
+    ///
+    /// A positive latch handles both: case 1 because the latch is still false until kEnteringLvl,
+    /// case 2 because MarkLevelComplete clears it and the later kPlaying bounces don't set it
+    /// (only kEnteringLvl does). Checking CurState == kPlaying is still needed ON TOP of this, to
+    /// stay out of kLevelUp/kPaused/kPickTreasure mid-run.
+    ///
+    /// Note this means a reward can only be delivered in a run the mod watched START. If it turns
+    /// out kEnteringLvl doesn't fire when RESUMING a saved mid-run battle, rewards would stay
+    /// queued for that run rather than being lost - the safe failure direction, but worth testing.
     /// </summary>
-    private static bool _runEnded;
+    private static bool _runLive;
 
     /// <summary>
-    /// Called from the Harmony patches below. Idempotent - the terminal states can fire more than
-    /// once per run, and MarkLevelComplete plus kEndingGame will both land on a completed level.
+    /// Called from the SetState patch below on kEnteringLvl - the one unambiguous "a new run is
+    /// beginning" signal in the state machine.
+    /// </summary>
+    internal static void NotifyRunStarted()
+    {
+        if (_runLive)
+            return;
+
+        _runLive = true;
+        LocationHooks.Log?.Msg("[RunScopedRewards] Run is live - queued rewards can now be delivered.");
+    }
+
+    /// <summary>
+    /// Called from the patches below. Idempotent - the terminal states can fire more than once per
+    /// run, and MarkLevelComplete plus kEndingGame will both land on a completed level.
     /// </summary>
     internal static void NotifyRunEnded(string why)
     {
-        if (_runEnded)
+        if (!_runLive)
             return;
 
-        _runEnded = true;
+        _runLive = false;
         LocationHooks.Log?.Msg($"[RunScopedRewards] Run no longer live ({why}) - holding queued rewards for the next one.");
     }
 
@@ -78,24 +111,26 @@ internal static class RunScopedRewards
         if (ApConnection.Session == null)
             return;
 
-        // GameMgr only exists inside a battle, so its absence doubles as "we're at base" - and is
-        // also where the run-ended latch gets cleared, since the next GameMgr we see belongs to a
-        // new run. Done before the pending-count check so the latch still resets on a run where
-        // nothing was queued.
-        var gameMgr = GameMgr.I;
-        if (gameMgr == null)
-        {
-            _runEnded = false;
+        // The positive latch, not CurState, is what decides whether a run is live - see _runLive
+        // for the two distinct ways CurState lies about it.
+        if (!_runLive)
             return;
-        }
 
         if (ItemReceiver.PendingLevelUps <= 0 && ItemReceiver.PendingFusers <= 0)
             return;
 
-        // kPlaying specifically (rather than any in-battle state) keeps us out of kLevelUp,
-        // kPaused, kPickTreasure and the rest, where a reward would either be lost or stack on an
-        // open UI - but it is NOT sufficient on its own, hence _runEnded. See that field's comment.
-        if (gameMgr.CurState != GameState.kPlaying || _runEnded)
+        // GameMgr going away mid-run shouldn't happen, but if it does, treat the run as over rather
+        // than dereferencing null.
+        var gameMgr = GameMgr.I;
+        if (gameMgr == null)
+        {
+            NotifyRunEnded("GameMgr disappeared");
+            return;
+        }
+
+        // Needed IN ADDITION to _runLive: keeps us out of kLevelUp, kPaused, kPickTreasure and the
+        // rest, where a reward would either be lost or stack on an already-open UI.
+        if (gameMgr.CurState != GameState.kPlaying)
             return;
 
         if (PickupMgr.I == null)
@@ -228,19 +263,29 @@ internal static class RunEndedOnLevelCompletePatch
 }
 
 /// <summary>
-/// Catches the other ways a run stops being playable - dying, or the level-complete teardown -
-/// so a reward can't land during whatever transient kPlaying windows those sequences produce
-/// either. MarkLevelComplete above doesn't fire on a death, so this is not redundant with it.
+/// Maintains RunScopedRewards' run-live latch from the two state transitions that matter:
+/// kEnteringLvl (a new run is beginning - the ONLY thing that turns delivery on) and
+/// kGameOver/kEndingGame (dying, or the level-complete teardown).
+///
+/// kEnteringLvl is what makes the latch trustworthy. GameState.kPlaying is enum value 0, so a
+/// newly-constructed GameMgr reads as "playing" before anything sets its state - requiring an
+/// explicit kEnteringLvl is what keeps a reward from being delivered into a run that hasn't
+/// started yet, against manager objects still holding the previous run's data.
+///
+/// kGameOver here is not redundant with the MarkLevelComplete patch above: that one doesn't fire
+/// on a death, and this one doesn't fire early enough for a completed level (see _runLive).
 /// </summary>
 [HarmonyPatch(typeof(GameMgr), nameof(GameMgr.SetState))]
-internal static class RunEndedOnTerminalStatePatch
+internal static class RunLiveStateTrackingPatch
 {
     private static void Postfix(GameState st)
     {
         if (ApConnection.Session == null)
             return;
 
-        if (st is GameState.kGameOver or GameState.kEndingGame)
+        if (st == GameState.kEnteringLvl)
+            RunScopedRewards.NotifyRunStarted();
+        else if (st is GameState.kGameOver or GameState.kEndingGame)
             RunScopedRewards.NotifyRunEnded($"state {st}");
     }
 }
