@@ -66,9 +66,17 @@ internal static class RunScopedRewards
     /// (only kEnteringLvl does). Checking CurState == kPlaying is still needed ON TOP of this, to
     /// stay out of kLevelUp/kPaused/kPickTreasure mid-run.
     ///
-    /// Note this means a reward can only be delivered in a run the mod watched START. If it turns
-    /// out kEnteringLvl doesn't fire when RESUMING a saved mid-run battle, rewards would stay
-    /// queued for that run rather than being lost - the safe failure direction, but worth testing.
+    /// Note this means a reward can only be delivered in a run the mod watched START. That's fine:
+    /// confirmed with the user that the game has no resume-mid-run - abandoning is the only way out
+    /// of a run in progress - so there's no path where kEnteringLvl gets skipped.
+    ///
+    /// The pre-level bonus-choice screens are handled by the CurState == kPlaying check rather than
+    /// by this latch. Some buildings (Gemsmith, Antique Shop - see BuildingMgr.BonusBallChoiceLvl /
+    /// BonusPassiveChoiceLvl) open an extra ball/passive selection at the start of a run, which is
+    /// GameState.kBonusBall / kBonusPassive. Either ordering is safe: if the screen comes before
+    /// kEnteringLvl the latch is still false, and if it comes after, CurState isn't kPlaying yet -
+    /// so a reward simply waits until the level proper. This is why the state check is kPlaying
+    /// specifically and not "any in-battle state".
     /// </summary>
     private static bool _runLive;
 
