@@ -75,6 +75,27 @@ internal static class LevelUnlockOrder
     }
 
     /// <summary>
+    /// This level's position in the real difficulty order, or null if slot data isn't loaded yet.
+    ///
+    /// This is ALSO the index vanilla uses into InfoDB.I.BlueprintsByLevel - that array is laid out
+    /// in difficulty order, NOT in LevelType declaration order, which is why BlueprintShuffle has to
+    /// ask for this rather than casting the enum. Established live: BuildingMgr's
+    /// GetAvailBlueprintsForLevel(lt) returns the contents of BlueprintsByLevel[PositionOf(lt)] for
+    /// all 8 levels, including two cases that rule the enum cast out outright - kHell and kDesert
+    /// reported a blueprint available while their own ordinal slots were EMPTY, and kClouds and kMoon
+    /// reported nothing available while the Void Trophy placeholder sat in theirs. See
+    /// BlueprintShuffle.SlotIndexFor.
+    /// </summary>
+    internal static int? PositionOf(LevelType type)
+    {
+        if (_order == null)
+            return null;
+
+        var position = _order.IndexOf(type);
+        return position >= 0 ? position : null;
+    }
+
+    /// <summary>
     /// Which level becomes reachable once the player holds exactly `count` copies of the
     /// progressive item (0 = the starting level, already reachable with none) - used only
     /// to report which level a specific received copy unlocked, e.g. for the receipt toast.

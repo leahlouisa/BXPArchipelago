@@ -1,4 +1,10 @@
-#if DEBUG
+#if DEBUG && ENABLE_LEGACY_DEBUG_HOOKS
+// DISABLED (2026-09-26): these 9 patches are switched off behind an undefined symbol, not deleted.
+// Il2CppInterop has a finite budget here - "Class::Init signatures have been exhausted" - and
+// crossing it breaks injected-type registration outright: ApGui registers, then AddComponent<ApGui>()
+// throws NullReferenceException and the mod fails to initialise. 25 total Harmony patches loaded
+// fine; 30 did not. Freeing these 9 buys room for DebugBlueprintDropProbe. Re-enable by defining
+// ENABLE_LEGACY_DEBUG_HOOKS, but expect to disable something else in exchange.
 using HarmonyLib;
 using Il2Cpp;
 using MelonLoader;

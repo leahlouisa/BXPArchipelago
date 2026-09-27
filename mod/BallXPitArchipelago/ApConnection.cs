@@ -74,10 +74,14 @@ public static class ApConnection
         // project memory) - Mod.OnUpdate() retries via BlueprintShuffle.ApplyFromSlotData()
         // the same way ItemReceiver retries pending items, so a no-op here just means it
         // applies a little later instead of failing.
+        // LevelUnlockOrder FIRST: BlueprintShuffle needs the difficulty order to know which
+        // BlueprintsByLevel slot vanilla will actually read for each level (see
+        // BlueprintShuffle.SlotIndexFor). It retries on the next tick if this is out of order, but
+        // there's no reason to make it wait.
+        LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
         BlueprintShuffle.ApplyLocationNameOverrides(success.SlotData);
         BlueprintShuffle.ApplyFromSlotData(success.SlotData, config.Slot, session.RoomState.Seed);
         BlueprintShuffle.PopulateCharHousingBuildings();
-        LevelUnlockOrder.ApplyFromSlotData(success.SlotData);
         EconomyOptions.ApplyFromSlotData(success.SlotData);
         EvosanityOptions.ApplyFromSlotData(success.SlotData);
         EconomyOptions.ApplyBuildingCostScaling();

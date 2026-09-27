@@ -40,6 +40,7 @@ public class Mod : MelonMod
         // Deliberately outside the session gate - the evosanity data dump reads vanilla's own
         // InfoDB/MetaSaveData and shouldn't need a generated seed just to run. Debug-only.
         DebugBallDump.Tick();
+        DebugBlueprintListDump.Tick();
 #endif
 
         if (ApConnection.Session != null)
@@ -47,10 +48,12 @@ public class Mod : MelonMod
             ItemReceiver.RetryPending(ApConnection.Session.Items);
             DeathLinkHandler.ProcessPending();
             ItemSendNotifier.ProcessPending();
+            // Before BlueprintShuffle - it needs the difficulty order to pick the right
+            // BlueprintsByLevel slot (see BlueprintShuffle.SlotIndexFor).
+            LevelUnlockOrder.ApplyFromSlotData(ApConnection.SlotData);
             BlueprintShuffle.ApplyLocationNameOverrides(ApConnection.SlotData);
             BlueprintShuffle.ApplyFromSlotData(ApConnection.SlotData, ApConnection.SlotName, ApConnection.Session.RoomState.Seed);
             BlueprintShuffle.PopulateCharHousingBuildings();
-            LevelUnlockOrder.ApplyFromSlotData(ApConnection.SlotData);
             BlueprintShuffle.ProcessPendingRefreshes();
             EconomyOptions.ApplyBuildingCostScaling();
             // Delivers at most one queued run-scoped reward per tick, and only mid-run - see

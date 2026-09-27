@@ -251,6 +251,26 @@ internal static class BlueprintShuffle
         // the reward splash but never actually completed the underlying grant.
         var anyLevelNotReady = false;
 
+        // Strip every slot, not just the one belonging to the level being processed. Two reasons:
+        // a building's chain position can be reassigned away from its original home level, so its
+        // real identity has to be unreachable everywhere; and since the slot a level's placeholder
+        // goes into is no longer that level's own ordinal slot (see SlotIndexFor), "the level's
+        // list" is not a meaningful unit to strip any more. Idempotent across retries - kMoonIdol is
+        // never pool-eligible, so an already-inserted placeholder always survives this.
+        for (var i = 0; i < byLevel.Length; i++)
+        {
+            var levelList = byLevel[i];
+            if (levelList == null)
+            {
+                anyLevelNotReady = true;
+                continue;
+            }
+
+            for (var j = levelList.Count - 1; j >= 0; j--)
+                if (levelList[j] != null && newPoolEligible.Contains(levelList[j].Type))
+                    levelList.RemoveAt(j);
+        }
+
         foreach (var pair in newPending)
         {
             var levelType = pair.Key;
@@ -259,20 +279,24 @@ internal static class BlueprintShuffle
             if (_pending.ContainsKey(levelType))
                 continue; // already successfully applied in an earlier attempt.
 
-            var idx = (int)levelType;
+            var idx = SlotIndexFor(levelType);
+            if (idx == null)
+            {
+                // Difficulty order not loaded yet - a timing issue, so retry rather than fall back
+                // to the enum cast, which is exactly the bug this replaced.
+                anyLevelNotReady = true;
+                continue;
+            }
+
             if (idx < 0 || idx >= byLevel.Length)
                 continue; // structural mismatch, not a timing issue - retrying won't help.
 
-            var list = byLevel[idx];
+            var list = byLevel[idx.Value];
             if (list == null)
             {
                 anyLevelNotReady = true;
                 continue;
             }
-
-            for (var j = list.Count - 1; j >= 0; j--)
-                if (list[j] != null && newPoolEligible.Contains(list[j].Type))
-                    list.RemoveAt(j);
 
             _pending[levelType] = queue;
             if (queue.Count > 0)
@@ -293,11 +317,35 @@ internal static class BlueprintShuffle
         // outside our sequential chain entirely - suppressed correctly by the general
         // branch in GainBlueprintLocationPatch, but never dequeued from _pending, leaving
         // it permanently "already checked" once the chain eventually reaches that position
-        // (reported live). No placeholder needed here, unlike BlueprintsByLevel - these
-        // lists aren't part of our sequential chain at all, we just need pool-eligible
-        // buildings unreachable through every path that isn't it.
+        // (reported live).
+        //
+        // A placeholder is left in each of these two lists as well. Be careful about what that does
+        // and does not accomplish, because the obvious reading of it has been tested and is wrong:
+        //
+        // It does NOT fix the non-pooled CharHousing stall. That was the hypothesis it was written
+        // for - a player stuck on Clouds at 6 blueprints remaining with vanilla re-offering
+        // Campground every visit - on the reasoning that stripping had taken both lists to literally
+        // 0 entries and vanilla was falling through to "any unowned building", of which the 11
+        // non-pooled CharHousing buildings are the only ones we never replace. Disproven live: with
+        // the placeholder in place and both lists reporting 1 entry, vanilla picked Campground
+        // anyway. The earlier per-level theory died the same way - at the moment of a bad pick,
+        // Clouds' own list held exactly one entry and it WAS an unowned Void Trophy placeholder at
+        // position 0, available and passed over.
+        //
+        // So vanilla's blueprint selection reads none of the three lists this class rewrites, and
+        // the real source is still open (see DebugBlueprintSourceProbe.cs, which calls vanilla's own
+        // BuildingMgr.GetAvail* queries instead of guessing).
+        //
+        // What it DOES do, and why it stays: leaving these lists at 0 entries is a state vanilla is
+        // never otherwise in, and any path that does read them now gets a candidate that routes
+        // through GainBlueprintLocationPatch into HandleVoidTrophyGrant and advances the level's real
+        // chain, rather than escaping the chain or finding nothing. Idempotent by the same argument
+        // as the per-level placeholder: HandleVoidTrophyGrant dequeues exactly one pending position
+        // per grant regardless of which list the placeholder came from.
         StripGlobalList(InfoDB.I.BossDropBlueprints, newPoolEligible);
         StripGlobalList(InfoDB.I.FuserDropBlueprints, newPoolEligible);
+        EnsureVoidTrophyPlaceholder(InfoDB.I.BossDropBlueprints, "BossDropBlueprints");
+        EnsureVoidTrophyPlaceholder(InfoDB.I.FuserDropBlueprints, "FuserDropBlueprints");
 
         foreach (var bt in newPoolEligible)
             PoolEligibleBuildings.Add(bt);
@@ -379,6 +427,35 @@ internal static class BlueprintShuffle
         _chainState.Save();
     }
 
+    /// <summary>
+    /// Which InfoDB.I.BlueprintsByLevel slot vanilla reads when the player is in this level.
+    ///
+    /// That array is ordered by DIFFICULTY, not by LevelType declaration order, and the two differ
+    /// for six of the eight levels - only kGraveyard and kSnowy happen to coincide. Using `(int)level`
+    /// here (the original code) therefore wrote every other level's placeholder into some unrelated
+    /// level's slot, and cost a player a hard, permanent progression stall: kClouds reads kShroom's
+    /// slot, kShroom's chain was fully drained, nothing ever refills a drained level's slot, so
+    /// completing Clouds could never be offered anything and vanilla fell through to an unowned
+    /// non-pooled CharHousing building (Campground) on every single visit.
+    ///
+    /// Established live via BuildingMgr.GetAvailBlueprintsForLevel, which answers from
+    /// BlueprintsByLevel[PositionOf(lt)] for all 8 levels. Two of those answers rule out the enum
+    /// cast on their own: kHell and kDesert reported a blueprint available while their own ordinal
+    /// slots were EMPTY, and kClouds and kMoon reported nothing available while an unowned Void
+    /// Trophy placeholder sat in theirs.
+    ///
+    /// This is safe to change mid-seed and needs no regeneration. The placeholder is only a sentinel
+    /// - every bit of chain meaning lives in _pending (keyed by LevelType) and LevelMgr.I.CurLevel,
+    /// so which array slot carries it affects only whether vanilla offers anything at all, never
+    /// which check fires or which item is behind it.
+    ///
+    /// Note this does NOT fix the related apworld data bug: BlueprintPools.py's
+    /// BLUEPRINT_POOLS_BY_LEVEL was captured from a dump that read the array by enum ordinal, so its
+    /// per-level labels are wrong for the same six levels. Correcting that changes per-level position
+    /// counts and location naming, so it needs a new seed.
+    /// </summary>
+    private static int? SlotIndexFor(LevelType level) => LevelUnlockOrder.PositionOf(level);
+
     /// <summary>Call from Mod.OnUpdate() - performs the list mutation HandleVoidTrophyGrant deferred.</summary>
     internal static void ProcessPendingRefreshes()
     {
@@ -391,11 +468,11 @@ internal static class BlueprintShuffle
 
         foreach (var level in _needsRefresh)
         {
-            var idx = (int)level;
-            if (idx < 0 || idx >= byLevel.Length)
+            var idx = SlotIndexFor(level);
+            if (idx == null || idx < 0 || idx >= byLevel.Length)
                 continue;
 
-            var list = byLevel[idx];
+            var list = byLevel[idx.Value];
             if (list == null)
                 continue;
 
@@ -407,6 +484,33 @@ internal static class BlueprintShuffle
         }
 
         _needsRefresh.Clear();
+    }
+
+    /// <summary>
+    /// Makes sure a stripped global list still offers the Void Trophy placeholder, so any path that
+    /// does read these lists gets a candidate that routes into our chain instead of finding nothing.
+    /// See the call site for why this is a safety net rather than the fix for the non-pooled
+    /// CharHousing stall it was originally written for - that hypothesis was tested live and failed.
+    ///
+    /// Adds at most one: these lists are scanned, not walked positionally like BlueprintsByLevel, so
+    /// a single entry is enough and duplicates would just be noise.
+    /// </summary>
+    private static void EnsureVoidTrophyPlaceholder(
+        Il2CppSystem.Collections.Generic.List<BuildingInfo> list, string listName)
+    {
+        if (list == null || _voidTrophyInfo == null)
+            return;
+
+        for (var i = 0; i < list.Count; i++)
+        {
+            if (list[i] != null && list[i].Type == BuildingType.kMoonIdol)
+                return;
+        }
+
+        list.Add(_voidTrophyInfo);
+        LocationHooks.Log?.Msg(
+            $"[BlueprintShuffle] Added the Void Trophy placeholder to {listName} ({list.Count} entries) - " +
+            "so any path that reads this list feeds the level's chain instead of finding it empty.");
     }
 
     private static void StripGlobalList(Il2CppSystem.Collections.Generic.List<BuildingInfo> list, HashSet<BuildingType> poolEligible)

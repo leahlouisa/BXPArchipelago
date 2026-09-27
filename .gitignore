@@ -6,3 +6,6 @@ __pycache__/
 
 # Machine-specific: your local Ball X Pit install path. Copy GameDir.props.example instead.
 mod/**/GameDir.props
+
+# Stale release bundle produced by hand-zipping the mod; rebuild it instead of committing it.
+/BallXPitArchipelago.zip
