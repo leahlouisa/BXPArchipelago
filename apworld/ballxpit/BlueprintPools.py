@@ -1,36 +1,36 @@
-# !!! THE LEVEL KEYS BELOW ARE WRONG FOR SIX OF THE EIGHT LEVELS. Contents and counts are
-# right; only the level each list is filed under is wrong. Fixing it needs a new seed (it
-# changes per-level position counts and therefore location naming), so it is deliberately
-# NOT fixed here yet - see below before trusting any level label in this file.
+# The level keys below are CORRECT. A previous version of this comment claimed they were wrong
+# for six of the eight levels; that claim was mistaken and is retracted. Do not "fix" them.
 #
-# InfoDB.I.BlueprintsByLevel is indexed by the level's position in the real DIFFICULTY order
-# (Graveyard, Snowy, Desert, Shroom, Savanna, Hell, Clouds, Moon), not by LevelType ordinal.
-# The dump these keys came from read it by ordinal, so every level whose position differs from
-# its enum value got someone else's list. Only kGraveyard and kSnowy coincide. The true owner
-# of each list below is the level at that difficulty position:
+# InfoDB.I.BlueprintsByLevel is indexed by LevelType ordinal, so BlueprintsByLevel[4] really is
+# kClouds's list and these keys mean what they say. Proven twice, 2026-09-27, both independent of
+# any array indexing:
+#   - InfoDB.I.Levels[i].Type == (LevelType)i for all 8 entries.
+#   - HeroInfo.reqLevel is a PER-BALL field, and all 7 gated balls agree with UnlocksByLevel read
+#     by ordinal: kCharm's own reqLevel is kClouds and it sits at UnlocksByLevel[4]; likewise
+#     kDark/0, kStone/1, kFlesh/2, kTime/3, kCell/6, kLight/7.
 #
-#   filed as kSavanna -> really kDesert      filed as kClouds -> really kSavanna
-#   filed as kHell    -> really kShroom      filed as kMoon   -> really kHell
-#   filed as kShroom  -> really kClouds      filed as kDesert -> really kMoon
+# The wiki caveat that used to head this file therefore stands as originally written: it
+# disagreed with a live dump on Unstable Tower, Spa, Road Keeper, Gatherer's Hut and the six stat
+# buildings, and the dump was right. Only a direct dump of InfoDB.I.BlueprintsByLevel is
+# authoritative for per-level placement.
 #
-# Established live 2026-09-26 via BuildingMgr.GetAvailBlueprintsForLevel, which answers from
-# BlueprintsByLevel[difficulty position] for all 8 levels - including two results that rule out
-# the ordinal reading outright (kHell and kDesert reported a blueprint available while their
-# ordinal slots were empty; kClouds and kMoon reported none while a placeholder sat in theirs).
-# The same mistake in the mod cost a player a hard progression stall on Clouds and is fixed
-# there - see BlueprintShuffle.SlotIndexFor.
+# BUT DO NOT CONFUSE THAT WITH HOW VANILLA *READS* THE ARRAY, which is a separate and still
+# unexplained fact: BuildingMgr.GetAvailBlueprintsForLevel(lt) answers from
+# BlueprintsByLevel[position of lt in the difficulty order], not [(int)lt]. Confirmed live before
+# and after a fix, including two results that rule out an ordinal read outright (kHell and
+# kDesert reported a blueprint available while their own ordinal slots were EMPTY; kClouds and
+# kMoon reported none while an unowned placeholder sat in theirs). That is why
+# BlueprintShuffle.SlotIndexFor writes the mod's placeholder at the difficulty-position index -
+# it has to put the sentinel where vanilla looks. It caused a real, permanent progression stall
+# before it was fixed.
 #
-# AND THE WIKI WAS RIGHT. The retracted claim that used to head this file said the wiki "cannot
-# be trusted for per-level placement" because it disagreed with a live dump on Unstable Tower,
-# Spa, Road Keeper, Gatherer's Hut and the six stat buildings. Every one of those five sits at an
-# index where position != ordinal, and there was no disagreement at either index where they
-# coincide. The wiki was describing real placement; the dump was mislabeling it. Treat the wiki
-# as corroborating evidence again, and treat "confirmed live" as only as strong as the indexing
-# assumption underneath it.
+# So: this file's keys describe where buildings LIVE (ordinal, correct). SlotIndexFor describes
+# where vanilla LOOKS (difficulty position, also correct). Both are true at once, and conflating
+# them is what produced the retracted claim above.
 #
-# Ground truth for the CONTENTS of InfoDB.I.BlueprintsByLevel, captured live via temporary debug
-# logging (see project memory) - the real pool of buildings vanilla's boss-drop logic offers,
-# in vanilla's own order within each list.
+# Ground truth for InfoDB.I.BlueprintsByLevel, captured live via temporary debug logging (see
+# project memory) - the real, per-level pool of buildings vanilla's boss-drop logic offers as you
+# play each biome, in vanilla's own order within each list.
 #
 # All 62 buildings vanilla actually offers across the 8 levels are listed below, in their
 # real vanilla order - full coverage, confirmed live. As of the "major design

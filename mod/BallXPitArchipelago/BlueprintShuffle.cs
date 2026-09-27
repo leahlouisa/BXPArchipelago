@@ -449,10 +449,17 @@ internal static class BlueprintShuffle
     /// so which array slot carries it affects only whether vanilla offers anything at all, never
     /// which check fires or which item is behind it.
     ///
-    /// Note this does NOT fix the related apworld data bug: BlueprintPools.py's
-    /// BLUEPRINT_POOLS_BY_LEVEL was captured from a dump that read the array by enum ordinal, so its
-    /// per-level labels are wrong for the same six levels. Correcting that changes per-level position
-    /// counts and location naming, so it needs a new seed.
+    /// Do NOT conclude from this that the array's CONTENTS are mislabelled - that inference was made
+    /// here once and was wrong. BlueprintsByLevel is laid out by LevelType ordinal (proven 2026-09-27
+    /// two ways that need no array index: InfoDB.Levels[i].Type == (LevelType)i for all 8, and the
+    /// per-ball HeroInfo.reqLevel agrees with UnlocksByLevel read by ordinal for all 7 gated balls).
+    /// So BlueprintPools.py's per-level keys are correct and need no relabelling.
+    ///
+    /// Both facts hold at once: buildings LIVE at their ordinal index, and vanilla LOOKS at the
+    /// difficulty-position index. Why vanilla reads a different slot than it fills is still
+    /// unexplained, and is a vanilla quirk rather than anything the mod introduced - but the mod only
+    /// needs to put its sentinel where vanilla looks, which is what this does, and that is verified
+    /// live end to end.
     /// </summary>
     private static int? SlotIndexFor(LevelType level) => LevelUnlockOrder.PositionOf(level);
 

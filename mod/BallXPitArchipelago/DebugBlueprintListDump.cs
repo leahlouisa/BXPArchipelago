@@ -95,9 +95,58 @@ internal static class DebugBlueprintListDump
         }
 
         log?.Msg($"{Tag} === begin === reason={why}");
+        DumpLevelsArray();
         DumpBlueprintsByLevel();
         DumpCharHousing();
         log?.Msg($"{Tag} === end ===");
+    }
+
+    /// <summary>
+    /// InfoDB.I.Levels, which is the direct way to ask "what is this array index?" without going
+    /// through BlueprintsByLevel at all.
+    ///
+    /// Both are plain by-level arrays on the same object, so if Levels[i].Type is the level that owns
+    /// index i, it names the owner of BlueprintsByLevel[i] too - and that is exactly the fact the
+    /// apworld's BLUEPRINT_POOLS_BY_LEVEL keys need and currently get wrong. Two outcomes, both
+    /// informative:
+    ///
+    ///   Levels[i].Type == (LevelType)i for all i  -> InfoDB's arrays are ordinal-ordered, so this
+    ///     tells us nothing about BlueprintsByLevel specifically, and the relabel needs a player to
+    ///     confirm one disputed building instead.
+    ///   Levels[i].Type follows the difficulty order -> InfoDB's by-level arrays are difficulty
+    ///     ordered, which independently confirms the permutation and names every slot's true owner.
+    ///
+    /// Name is printed alongside Type because it is the localized biome name the player actually
+    /// sees, which makes a wrong assumption obvious to a human reader rather than only to the code.
+    /// </summary>
+    private static void DumpLevelsArray()
+    {
+        var log = LocationHooks.Log;
+        var levels = InfoDB.I.Levels;
+
+        if (levels == null)
+        {
+            log?.Msg($"{Tag} LEVELINFO|<null>");
+            return;
+        }
+
+        log?.Msg($"{Tag} LEVELINFO|count={levels.Length}|LevelType.kNum={(int)LevelType.kNum}");
+
+        for (var i = 0; i < levels.Length; i++)
+        {
+            var inf = levels[i];
+            if (inf == null)
+            {
+                log?.Msg($"{Tag}   LEVELINFO|idx={i}|<null>");
+                continue;
+            }
+
+            var type = Safe(() => inf.Type.ToString());
+            var ordinal = i < (int)LevelType.kNum ? ((LevelType)i).ToString() : "?";
+            var agrees = type == ordinal ? "SAME_AS_ORDINAL" : $"DIFFERS(ordinal={ordinal})";
+            log?.Msg(
+                $"{Tag}   LEVELINFO|idx={i}|type={type}|name={Safe(() => inf.Name)}|{agrees}");
+        }
     }
 
     /// <summary>
@@ -126,23 +175,84 @@ internal static class DebugBlueprintListDump
                 continue;
             }
 
-            log?.Msg($"{Tag} LEVEL|idx={i}|level={levelName}|count={list.Count}");
+            // levelName here is the ORDINAL reading, i.e. (LevelType)i. It is printed as
+            // "ordinalLabel" rather than "level" because that reading is known to be wrong: this
+            // array is indexed by difficulty position, so slot i belongs to the level at position i.
+            // tgtLvl below is the independent check - see DumpTargetLevelSummary.
+            log?.Msg($"{Tag} LEVEL|idx={i}|ordinalLabel={levelName}|count={list.Count}");
 
             for (var j = 0; j < list.Count; j++)
             {
                 var info = list[j];
                 if (info == null)
                 {
-                    log?.Msg($"{Tag}   ENTRY|level={levelName}|pos={j}|<null>");
+                    log?.Msg($"{Tag}   ENTRY|idx={i}|pos={j}|<null>");
                     continue;
                 }
 
                 var bt = info.Type;
                 var flagged = ClaimedNonPooled.Contains(bt) ? "|IS_CLAIMED_NONPOOLED=YES" : "";
                 log?.Msg(
-                    $"{Tag}   ENTRY|level={levelName}|pos={j}|type={bt}|name={Safe(() => info.Name)}" +
+                    $"{Tag}   ENTRY|idx={i}|pos={j}|type={bt}|name={Safe(() => info.Name)}" +
+                    $"|tgtLvl={Safe(() => bt.GetTgtLvl().ToString())}" +
                     $"|isInGame={Safe(() => info.IsInGame.ToString())}{flagged}");
             }
+        }
+
+        DumpTargetLevelSummary(byLevel);
+    }
+
+    /// <summary>
+    /// ANSWERED, AND THE ANSWER WAS NOT THIS. Kept because the negative result is worth not
+    /// re-deriving: BuildingUtl.GetTgtLvl returns kNum for every ordinary blueprint (confirmed live
+    /// 2026-09-27 across all 8 slots), so it is not a per-blueprint home level at all - it sits beside
+    /// IsLevelCompletionBonus/GetCompletionBld and only means something for level-completion
+    /// buildings. Unanimity on kNum is agreement about nothing, which is why the verdict below
+    /// distinguishes USELESS from UNANIMOUS.
+    ///
+    /// This was written to test whether BlueprintsByLevel's level labels were wrong for six of eight
+    /// slots. They are NOT wrong - the array is laid out by LevelType ordinal, settled instead by the
+    /// LEVELINFO lines above plus the per-ball HeroInfo.reqLevel cross-check. See BlueprintPools.py's
+    /// header for the full retraction, and note the separate fact that vanilla READS the array at the
+    /// difficulty-position index even though buildings LIVE at their ordinal index.
+    /// </summary>
+    private static void DumpTargetLevelSummary(
+        Il2CppInterop.Runtime.InteropTypes.Arrays.Il2CppReferenceArray<
+            Il2CppSystem.Collections.Generic.List<BuildingInfo>> byLevel)
+    {
+        var log = LocationHooks.Log;
+        log?.Msg($"{Tag} --- slot ownership per BuildingUtl.GetTgtLvl (independent of array indexing) ---");
+
+        for (var i = 0; i < byLevel.Length; i++)
+        {
+            var list = byLevel[i];
+            if (list == null)
+                continue;
+
+            var seen = new System.Collections.Generic.List<string>();
+            for (var j = 0; j < list.Count; j++)
+            {
+                if (list[j] == null)
+                    continue;
+
+                var tgt = Safe(() => list[j].Type.GetTgtLvl().ToString());
+                if (!seen.Contains(tgt))
+                    seen.Add(tgt);
+            }
+
+            // "Unanimous" is only meaningful if the value is a real level. GetTgtLvl returns kNum for
+            // every ordinary blueprint (confirmed live 2026-09-27: all 8 slots, every entry), i.e. it
+            // only means something for level-completion buildings - so unanimity on kNum is agreement
+            // about nothing, and saying UNANIMOUS there would be a false positive.
+            var verdict = seen.Count == 1 && seen[0] != LevelType.kNum.ToString()
+                ? $"UNANIMOUS -> slot {i} belongs to {seen[0]}"
+                : seen.Count == 1
+                    ? "USELESS (all kNum - GetTgtLvl is not a per-blueprint home level; see LEVELINFO lines instead)"
+                    : $"INCONCLUSIVE ({seen.Count} distinct values - GetTgtLvl is not a per-blueprint home level)";
+
+            log?.Msg(
+                $"{Tag} SLOTOWNER|idx={i}|ordinalLabel={(i < (int)LevelType.kNum ? ((LevelType)i).ToString() : "?")}" +
+                $"|tgtLvls={string.Join(",", seen)}|{verdict}");
         }
     }
 
